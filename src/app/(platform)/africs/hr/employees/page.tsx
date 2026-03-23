@@ -1,23 +1,55 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import Link from "next/link";
+import { getOwnerBusiness } from "@/lib/actions/tenants";
+import { getEmployees, getEmployeeStats } from "@/lib/actions/employees";
+import { notFound } from "next/navigation";
+import { EmployeeListTable } from "@/components/employees/employee-list-table";
 
-export default function EmployeesPage() {
+export default async function EmployeesPage() {
+  const owner = await getOwnerBusiness();
+  if (!owner) notFound();
+
+  const [employees, stats] = await Promise.all([
+    getEmployees(owner.id),
+    getEmployeeStats(owner.id),
+  ]);
+
   return (
     <div>
-      <TopBar title="Employees" subtitle="Employee directory and profiles" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <UserCheck className="h-6 w-6 text-muted-foreground" />
+      <TopBar
+        title="Employees"
+        subtitle="Employee directory and profiles"
+        actions={
+          <Link href="/africs/hr/employees/new">
+            <Button size="sm" className="gap-2">
+              <Plus className="h-3.5 w-3.5" />
+              Add Employee
+            </Button>
+          </Link>
+        }
+      />
+      <div className="p-6 space-y-6">
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Total", value: stats.total, color: "text-foreground" },
+            { label: "Active", value: stats.active, color: "text-emerald-400" },
+            { label: "On Leave", value: stats.onLeave, color: "text-amber-400" },
+            { label: "Terminated", value: stats.terminated, color: "text-zinc-500" },
+          ].map((s) => (
+            <div key={s.label} className="bg-card border rounded-lg px-4 py-3">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className={`text-2xl font-bold font-display mt-0.5 ${s.color}`}>{s.value}</p>
             </div>
-            <h3 className="font-medium text-lg">Employees</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Employee directory, profiles, and records management are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
+
+        <EmployeeListTable
+          employees={employees}
+          accentColor={owner.accentColor ?? owner.primaryColor}
+        />
       </div>
     </div>
   );
