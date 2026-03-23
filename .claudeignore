@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+.pnp.*
+.yarn/*
+
+# build output
+.next/
+out/
+build/
+
+# lock files
+pnpm-lock.yaml
+
+# generated
+next-env.d.ts
+*.tsbuildinfo
+
+# prisma migrations (auto-generated SQL)
+prisma/migrations/
+
+# env files
+.env
+.env*.local
+
+# vercel
+.vercel/
+
+# misc
+.DS_Store
+*.pem
+coverage/

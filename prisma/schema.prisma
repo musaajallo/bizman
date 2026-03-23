@@ -1,0 +1,898 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Auth.js required models ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  isSuperAdmin  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  tenantUsers TenantUser[]
+  auditLogs   AuditLog[]
+
+  // Projects
+  createdProjects    Project[]
+  projectMembers     ProjectMember[]
+  assignedTasks      Task[]              @relation("TaskAssignee")
+  createdTasks       Task[]              @relation("TaskCreator")
+  taskComments       TaskComment[]
+  checklistItems     TaskChecklistItem[]
+  projectActivities  ProjectActivity[]
+  timeEntries        TimeEntry[]
+  createdTemplates   ProjectTemplate[]
+
+  // Invoicing
+  createdInvoices    Invoice[]
+  invoicePayments    InvoicePayment[]
+  invoiceActivities  InvoiceActivity[]
+
+  // Documents
+  uploadedDocuments     Document[]
+  documentVersions      DocumentVersion[]
+
+  // Docs (Knowledge Base)
+  createdDocPages       DocPage[]        @relation("DocPageCreator")
+  lastEditedDocPages    DocPage[]        @relation("DocPageLastEditor")
+  docRevisions          DocRevision[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Multi-tenancy ---
+
+model Tenant {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  industry            String?
+  address             String?
+  website             String?
+  primaryContactName  String?
+  primaryContactEmail String?
+  primaryContactPhone String?
+  status              String   @default("active") // active, paused, archived
+  notes               String?
+  isOwnerBusiness     Boolean  @default(false)
+
+  // Branding
+  logoUrl       String?
+  primaryColor  String?
+  accentColor   String?
+  fontFamily    String?
+  headerLayout  String?  // left, center, right
+  footerText    String?
+  pdfWatermark  String?
+
+  // Modules
+  enabledModules String[] @default(["hr", "forms", "pdf"])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantUsers   TenantUser[]
+  forms         Form[]
+  profiles      Profile[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  // Projects
+  projects          Project[]
+  clientProjects    Project[]         @relation("ProjectClient")
+  projectCategories ProjectCategory[]
+  projectTemplates  ProjectTemplate[]
+
+  // Invoicing
+  invoiceSettings   InvoiceSettings?
+  invoices          Invoice[]
+  clientInvoices    Invoice[]         @relation("InvoiceClient")
+
+  // Communications
+  smtpSettings      SmtpSettings?
+
+  // Documents
+  documents         Document[]
+
+  // Docs (Knowledge Base)
+  docPages          DocPage[]
+
+  // Statutory Registers
+  directors         Director[]
+  shareholders      Shareholder[]
+}
+
+model TenantUser {
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  role     String // company_admin, manager, staff
+
+  modulePermissions Json? // [{module, access}]
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+}
+
+// --- Forms ---
+
+model Form {
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  slug             String
+  description      String?
+  status           String   @default("draft") // draft, published, archived
+  pdfLayout        String?  // single, two-column
+  showPhoto        Boolean  @default(false)
+  photoPosition    String?  // top-left, top-right
+  requireSignature Boolean  @default(false)
+  successMessage   String?
+  redirectUrl      String?
+  expiryDate       DateTime?
+  submissionLimit  Int?
+  createdById      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fields FormField[]
+  profiles Profile[]
+
+  @@unique([tenantId, slug])
+}
+
+model FormField {
+  id               String   @id @default(cuid())
+  formId           String
+  type             String
+  label            String
+  placeholder      String?
+  helperText       String?
+  required         Boolean  @default(false)
+  width            String   @default("full") // full, half
+  order            Int
+  validation       Json?
+  options          String[]
+  tableColumns     Json?
+  defaultRowCount  Int?
+  pdfVisible       Boolean  @default(true)
+  pdfLabelOverride String?
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+}
+
+// --- Profiles ---
+
+model Profile {
+  id                 String  @id @default(cuid())
+  tenantId           String
+  formId             String
+  data               Json
+  status             String  @default("submitted") // submitted, reviewed, filed
+  photoUrl           String?
+  signatureUrl       String?
+  pdfUrl             String?
+  submittedById      String?
+  referenceNumber    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+}
+
+// --- Audit Logs ---
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  timestamp  DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  actor  User    @relation(fields: [actorId], references: [id])
+}
+
+// --- Notifications ---
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  tenantId   String?
+  type       String
+  title      String
+  message    String
+  entityType String?
+  entityId   String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+}
+
+// --- Project Categories ---
+
+model ProjectCategory {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String
+  order    Int    @default(0)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, order])
+}
+
+// --- Projects ---
+
+model Project {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?   @db.Text
+  status      String    @default("not_started") // not_started, in_progress, on_hold, completed, cancelled
+  priority    String    @default("medium") // low, medium, high, urgent
+  type        String    @default("client") // client, internal, retainer
+
+  // Client type: internal, individual, organization
+  clientType String @default("organization")
+
+  // Dates
+  startDate DateTime?
+  endDate   DateTime?
+  isRolling Boolean   @default(false)
+
+  // Entity assignment — Individual
+  contactName    String?
+  contactEmail   String?
+  contactPhone   String?
+
+  // Entity assignment — Organization
+  clientTenantId String?
+  orgName        String?
+  orgAddress     String?
+  orgContactName  String?
+  orgContactEmail String?
+  orgContactPhone String?
+
+  // Budget
+  billingType    String? // fixed, hourly, retainer, pro_bono
+  budgetAmount   Decimal? @db.Decimal(12, 2)
+  budgetCurrency String?
+  hourlyRate     Decimal? @db.Decimal(8, 2)
+
+  // Categorization
+  categoryId String?
+  tags       String[]
+
+  // Progress
+  progress Int @default(0)
+
+  // Notes
+  notes String? @db.Text
+
+  // Metadata
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientTenant Tenant?          @relation("ProjectClient", fields: [clientTenantId], references: [id], onDelete: SetNull)
+  category     ProjectCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy    User             @relation(fields: [createdById], references: [id])
+  members      ProjectMember[]
+  tasks        Task[]
+  statuses     ProjectStatus[]
+  milestones   Milestone[]
+  activities   ProjectActivity[]
+  invoices     Invoice[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([clientTenantId])
+  @@index([categoryId])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("member") // lead, member, reviewer
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model ProjectStatus {
+  id        String  @id @default(cuid())
+  projectId String
+  name      String
+  color     String  @default("#6B7280")
+  group     String  // not_started, active, done, closed
+  order     Int
+  isDefault Boolean @default(false)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@unique([projectId, name])
+  @@index([projectId, order])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  projectId   String
+  statusId    String
+  parentId    String?
+  title       String
+  description String?  @db.Text
+  priority    String   @default("medium") // none, low, medium, high, urgent
+  order       Int      @default(0)
+
+  assigneeId  String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  estimateMinutes Int?
+  loggedMinutes   Int @default(0)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status   ProjectStatus @relation(fields: [statusId], references: [id])
+  parent   Task?         @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks Task[]        @relation("TaskSubtasks")
+  assignee User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy User         @relation("TaskCreator", fields: [createdById], references: [id])
+  comments   TaskComment[]
+  checklists TaskChecklist[]
+
+  // Dependencies
+  blockedBy TaskDependency[] @relation("DependencyBlockedTask")
+  blocking  TaskDependency[] @relation("DependencyBlockingTask")
+
+  // Time entries
+  timeEntries TimeEntry[]
+
+  @@index([projectId, statusId, order])
+  @@index([assigneeId])
+  @@index([parentId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  content   String   @db.Text
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task    Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author  User          @relation(fields: [authorId], references: [id])
+  parent  TaskComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies TaskComment[] @relation("CommentReplies")
+
+  @@index([taskId, createdAt])
+}
+
+model TaskChecklist {
+  id     String @id @default(cuid())
+  taskId String
+  title  String @default("Checklist")
+  order  Int    @default(0)
+
+  task  Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items TaskChecklistItem[]
+
+  @@index([taskId, order])
+}
+
+model TaskChecklistItem {
+  id          String   @id @default(cuid())
+  checklistId String
+  title       String
+  isComplete  Boolean  @default(false)
+  order       Int      @default(0)
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+
+  checklist TaskChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  assignee  User?         @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([checklistId, order])
+}
+
+// --- Milestones ---
+
+model Milestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, order])
+}
+
+// --- Project Activity Log ---
+
+model ProjectActivity {
+  id        String   @id @default(cuid())
+  projectId String
+  actorId   String
+  action    String   // created_project, updated_status, added_member, removed_member, created_task, completed_task, created_milestone, completed_milestone, updated_project, etc.
+  details   Json?    // { field, from, to } or { taskTitle, memberName, milestoneName }
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User    @relation(fields: [actorId], references: [id])
+
+  @@index([projectId, createdAt])
+}
+
+// --- Task Dependencies ---
+
+model TaskDependency {
+  id             String @id @default(cuid())
+  taskId         String // The blocked task
+  dependsOnId    String // The blocking task
+  type           String @default("finish_to_start") // finish_to_start, start_to_start, finish_to_finish, start_to_finish
+
+  createdAt DateTime @default(now())
+
+  task      Task @relation("DependencyBlockedTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("DependencyBlockingTask", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+  @@index([dependsOnId])
+}
+
+// --- Time Tracking ---
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  taskId      String
+  userId      String
+  minutes     Int
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId, date])
+}
+
+// --- Project Templates ---
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  category    String?
+  statuses    Json     // Array of { name, color, group, order, isDefault }
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User                  @relation(fields: [createdById], references: [id])
+  tasks     ProjectTemplateTask[]
+
+  @@index([tenantId])
+}
+
+model ProjectTemplateTask {
+  id          String  @id @default(cuid())
+  templateId  String
+  parentId    String?
+  title       String
+  description String? @db.Text
+  priority    String  @default("medium")
+  statusIndex Int     @default(0) // Index into template's statuses array
+  order       Int     @default(0)
+
+  template ProjectTemplateTask? @relation("TemplateTaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks ProjectTemplateTask[] @relation("TemplateTaskSubtasks")
+  parent   ProjectTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, order])
+}
+
+// --- Invoicing ---
+
+model InvoiceSettings {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  prefix            String   @default("INV")
+  nextNumber        Int      @default(1)
+  defaultDueDays    Int      @default(30)
+  defaultNotes      String?  @db.Text
+  defaultTerms      String?  @db.Text
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankRoutingNumber String?
+  bankSwift         String?
+  bankIban          String?
+  taxLabel          String?  @default("Tax")
+  defaultTaxRate    Decimal? @db.Decimal(5, 2)
+  proformaPrefix    String   @default("PRO")
+  proformaNextNumber Int     @default(1)
+
+  // Invoice branding (overrides tenant primaryColor)
+  accentColor String?
+  logoUrl     String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// --- Communications ---
+
+model SmtpSettings {
+  id         String  @id @default(cuid())
+  tenantId   String  @unique
+  host       String?
+  port       Int     @default(587)
+  username   String?
+  password   String? @db.Text
+  encryption String  @default("tls") // tls, ssl, none
+  fromName   String?
+  fromEmail  String?
+  replyTo    String?
+  enabled    Boolean @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  tenantId        String
+  projectId       String?
+  clientTenantId  String?
+
+  invoiceNumber   String
+  referenceNumber String?
+
+  // standard (payment request) or proforma (estimate/quote)
+  type            String    @default("standard")
+
+  // draft, sent, viewed, paid, overdue, void (standard)
+  // draft, sent, viewed, accepted, converted, expired, void (proforma)
+  status          String    @default("draft")
+
+  issueDate       DateTime  @default(now())
+  dueDate         DateTime
+  paidDate        DateTime?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  voidedAt        DateTime?
+
+  // Client snapshot
+  clientName      String
+  clientEmail     String?
+  clientPhone     String?
+  clientAddress   String?
+
+  // Amounts
+  subtotal        Decimal   @db.Decimal(12, 2) @default(0)
+  taxRate         Decimal?  @db.Decimal(5, 2)
+  taxAmount       Decimal   @db.Decimal(12, 2) @default(0)
+  discountAmount  Decimal   @db.Decimal(12, 2) @default(0)
+  total           Decimal   @db.Decimal(12, 2) @default(0)
+  amountPaid      Decimal   @db.Decimal(12, 2) @default(0)
+  amountDue       Decimal   @db.Decimal(12, 2) @default(0)
+  currency        String    @default("USD")
+
+  notes           String?   @db.Text
+  terms           String?   @db.Text
+
+  shareToken      String    @unique @default(cuid())
+  pdfUrl          String?
+
+  // Recurring
+  isRecurring       Boolean   @default(false)
+  recurringInterval String?
+  nextRecurringDate DateTime?
+  parentInvoiceId   String?
+
+  // Proforma conversion tracking
+  convertedFromId   String?   @unique
+
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientTenant  Tenant?          @relation("InvoiceClient", fields: [clientTenantId], references: [id], onDelete: SetNull)
+  parentInvoice Invoice?         @relation("RecurringInvoices", fields: [parentInvoiceId], references: [id], onDelete: SetNull)
+  recurringChildren Invoice[]    @relation("RecurringInvoices")
+  convertedFrom Invoice?         @relation("ProformaConversion", fields: [convertedFromId], references: [id], onDelete: SetNull)
+  convertedTo   Invoice?         @relation("ProformaConversion")
+  createdBy     User             @relation(fields: [createdById], references: [id])
+  lineItems     InvoiceLineItem[]
+  payments      InvoicePayment[]
+  activities    InvoiceActivity[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, type, status])
+  @@index([projectId])
+  @@index([clientTenantId])
+  @@index([dueDate])
+  @@index([shareToken])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  order       Int     @default(0)
+
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  amount      Decimal @db.Decimal(12, 2)
+  unit        String? // hours, days, units, fixed
+
+  timeEntryIds String[]
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, order])
+}
+
+model InvoicePayment {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  amount       Decimal  @db.Decimal(12, 2)
+  method       String?  // bank_transfer, cash, check, card, mobile_money, other
+  reference    String?
+  notes        String?
+  date         DateTime @default(now())
+  recordedById String
+  createdAt    DateTime @default(now())
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedBy User    @relation(fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+}
+
+model InvoiceActivity {
+  id        String   @id @default(cuid())
+  invoiceId String
+  actorId   String?
+  action    String   // created, updated, sent, viewed, paid, partially_paid, voided, reminder_sent
+  details   Json?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorId], references: [id])
+
+  @@index([invoiceId, createdAt])
+}
+
+// --- Documents (File Storage) ---
+
+model Document {
+  id               String    @id @default(cuid())
+  tenantId         String
+  name             String
+  slug             String
+  description      String?   @db.Text
+  folder           String    @default("/")
+  tags             String[]
+  currentVersionId String?
+  uploadedById     String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  archivedAt       DateTime?
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy   User              @relation(fields: [uploadedById], references: [id])
+  versions     DocumentVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, folder])
+}
+
+model DocumentVersion {
+  id           String   @id @default(cuid())
+  documentId   String
+  version      Int
+  fileName     String
+  fileUrl      String
+  fileSize     Int
+  mimeType     String
+  changelog    String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id])
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+// --- Docs (Knowledge Base) ---
+
+model DocPage {
+  id             String    @id @default(cuid())
+  tenantId       String
+  title          String
+  slug           String
+  content        String    @db.Text
+  excerpt        String?
+  parentId       String?
+  category       String    @default("General")
+  icon           String?
+  order          Int       @default(0)
+  published      Boolean   @default(false)
+  publishedAt    DateTime?
+  createdById    String
+  lastEditedById String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent       DocPage?      @relation("DocPageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     DocPage[]     @relation("DocPageTree")
+  createdBy    User          @relation("DocPageCreator", fields: [createdById], references: [id])
+  lastEditedBy User?         @relation("DocPageLastEditor", fields: [lastEditedById], references: [id])
+  revisions    DocRevision[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, category, order])
+  @@index([tenantId, parentId])
+}
+
+model DocRevision {
+  id         String   @id @default(cuid())
+  docPageId  String
+  version    Int
+  title      String
+  content    String   @db.Text
+  changelog  String?
+  editedById String
+  createdAt  DateTime @default(now())
+
+  docPage  DocPage @relation(fields: [docPageId], references: [id], onDelete: Cascade)
+  editedBy User    @relation(fields: [editedById], references: [id])
+
+  @@unique([docPageId, version])
+  @@index([docPageId])
+}
+
+// --- Statutory Registers ---
+
+model Director {
+  id              String    @id @default(cuid())
+  tenantId        String
+  fullName        String
+  title           String?               // Mr, Mrs, Dr, etc.
+  designation     String    @default("Director") // Director, Managing Director, Executive Director, Non-Executive Director, Chairman
+  nationality     String?
+  idNumber        String?               // National ID or passport number
+  email           String?
+  phone           String?
+  residentialAddress String? @db.Text
+  dateOfBirth     DateTime?
+  appointmentDate DateTime
+  cessationDate   DateTime?             // null = currently serving
+  cessationReason String?               // resigned, removed, deceased, term_expired
+  shareholding    Decimal?  @db.Decimal(5, 2) // percentage ownership if also a shareholder
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, cessationDate])
+}
+
+model Shareholder {
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String                // person or entity name
+  type            String    @default("individual") // individual, corporate, trust, nominee
+  nationality     String?
+  idNumber        String?               // ID, passport, or registration number
+  email           String?
+  phone           String?
+  address         String?   @db.Text
+  sharesHeld      Int                   // number of shares
+  shareClass      String    @default("Ordinary") // Ordinary, Preference, etc.
+  nominalValue    Decimal?  @db.Decimal(12, 2) // value per share
+  percentageHeld  Decimal   @db.Decimal(5, 2) // ownership percentage
+  dateAcquired    DateTime
+  dateCeased      DateTime?             // null = current shareholder
+  transferDetails String?   @db.Text    // notes on how shares were acquired/transferred
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, dateCeased])
+}
