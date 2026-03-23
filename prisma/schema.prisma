@@ -939,7 +939,12 @@ model Employee {
   startDate           DateTime
   endDate             DateTime?
   probationEndDate    DateTime?
+  // active, on_leave, suspended, terminated, resigned
   status              String    @default("active")
+  // annual, sick, maternity, paternity, study, unpaid, compassionate (used when status = on_leave)
+  leaveType           String?
+  leaveEndDate        DateTime?
+  terminationReason   String?   @db.Text
 
   // Reporting
   managerId           String?

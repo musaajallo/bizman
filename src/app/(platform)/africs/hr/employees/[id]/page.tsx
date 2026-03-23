@@ -1,13 +1,11 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil } from "lucide-react";
-import Link from "next/link";
 import { getEmployee } from "@/lib/actions/employees";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { notFound } from "next/navigation";
 import { EmployeeAvatar } from "@/components/employees/employee-avatar";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
+import { EmployeeHeaderActions } from "@/components/employees/employee-header-actions";
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,22 +33,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       <TopBar
         title={`${employee.firstName} ${employee.lastName}`}
         subtitle={[employee.jobTitle, employee.department].filter(Boolean).join(" · ")}
-        actions={
-          <div className="flex items-center gap-2">
-            <Link href="/africs/hr/employees">
-              <Button size="sm" variant="ghost" className="gap-2">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                All Employees
-              </Button>
-            </Link>
-            <Link href={`/africs/hr/employees/${id}/edit`}>
-              <Button size="sm" variant="outline" className="gap-2">
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Button>
-            </Link>
-          </div>
-        }
+        actions={<EmployeeHeaderActions employeeId={id} currentStatus={employee.status} />}
       />
       <div className="p-6 space-y-6">
         {/* Header card */}
@@ -67,13 +50,19 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
               <h2 className="text-xl font-bold font-display">
                 {employee.firstName} {employee.middleName ? `${employee.middleName} ` : ""}{employee.lastName}
               </h2>
-              <EmployeeStatusBadge status={employee.status} />
+              <EmployeeStatusBadge status={employee.status} leaveType={employee.leaveType} />
             </div>
             <p className="text-muted-foreground mt-0.5">{employee.jobTitle || "—"}</p>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
               <span className="font-mono text-xs">{employee.employeeNumber}</span>
               {employee.department && <span>{employee.department}{employee.unit ? ` · ${employee.unit}` : ""}</span>}
               <span>{typeLabels[employee.employmentType] || employee.employmentType}</span>
+              {employee.status === "on_leave" && employee.leaveEndDate && (
+                <span>Returns {new Date(employee.leaveEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+              )}
+              {(employee.status === "terminated" || employee.status === "resigned") && employee.terminationReason && (
+                <span className="italic">{employee.terminationReason}</span>
+              )}
             </div>
           </div>
         </div>

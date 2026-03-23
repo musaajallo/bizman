@@ -7,8 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmployeeStatusBadge } from "./employee-status-badge";
+import { EmployeeStatusDialog } from "./employee-status-dialog";
 import { EmployeeAvatar } from "./employee-avatar";
-import { updateEmployeeStatus, deleteEmployee } from "@/lib/actions/employees";
+import { deleteEmployee } from "@/lib/actions/employees";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, UserCheck, UserX, PauseCircle, Search } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, UserCheck, UserX, PauseCircle, UserMinus, Search } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -28,9 +29,12 @@ interface Employee {
   unit: string | null;
   employmentType: string;
   status: string;
+  leaveType: string | null;
   photoUrl: string | null;
   personalEmail: string | null;
 }
+
+type DialogTarget = { employeeId: string; status: "on_leave" | "terminated" | "resigned" | "suspended" | "active" } | null;
 
 interface Props {
   employees: Employee[];
@@ -44,19 +48,13 @@ const typeLabels: Record<string, string> = {
   intern: "Intern",
 };
 
-const statusActions = [
-  { status: "active", label: "Set Active", icon: UserCheck },
-  { status: "on_leave", label: "Set On Leave", icon: PauseCircle },
-  { status: "suspended", label: "Suspend", icon: UserX },
-  { status: "terminated", label: "Terminate", icon: UserX },
-];
-
 export function EmployeeListTable({ employees, accentColor }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [dialog, setDialog] = useState<DialogTarget>(null);
   const [, startTransition] = useTransition();
 
   const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))].sort() as string[];
@@ -76,12 +74,6 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
     }
     return true;
   });
-
-  function handleStatusChange(id: string, status: string) {
-    startTransition(() => {
-      void updateEmployeeStatus(id, status);
-    });
-  }
 
   function handleDelete(id: string) {
     if (!confirm("Delete this employee? This cannot be undone.")) return;
@@ -113,6 +105,7 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
           <option value="on_leave">On Leave</option>
           <option value="suspended">Suspended</option>
           <option value="terminated">Terminated</option>
+          <option value="resigned">Resigned</option>
         </select>
         <select
           value={deptFilter}
@@ -181,7 +174,7 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
                     <td className="py-3 px-4 text-muted-foreground">{emp.jobTitle || "—"}</td>
                     <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{emp.department || "—"}</td>
                     <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{typeLabels[emp.employmentType] || emp.employmentType}</td>
-                    <td className="py-3 px-4"><EmployeeStatusBadge status={emp.status} /></td>
+                    <td className="py-3 px-4"><EmployeeStatusBadge status={emp.status} leaveType={emp.leaveType} /></td>
                     <td className="py-3 px-4 relative z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger render={
@@ -189,20 +182,43 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         } />
-                        <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem render={<Link href={`/africs/hr/employees/${emp.id}/edit`} />}>
                             <Pencil className="h-3.5 w-3.5 mr-2" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {statusActions
-                            .filter((a) => a.status !== emp.status)
-                            .map((a) => (
-                              <DropdownMenuItem key={a.status} onClick={() => handleStatusChange(emp.id, a.status)}>
-                                <a.icon className="h-3.5 w-3.5 mr-2" />
-                                {a.label}
+                          {emp.status !== "active" && (
+                            <DropdownMenuItem onClick={() => setDialog({ employeeId: emp.id, status: "active" })}>
+                              <UserCheck className="h-3.5 w-3.5 mr-2 text-emerald-400" />
+                              Set Active
+                            </DropdownMenuItem>
+                          )}
+                          {emp.status !== "on_leave" && emp.status !== "terminated" && emp.status !== "resigned" && (
+                            <DropdownMenuItem onClick={() => setDialog({ employeeId: emp.id, status: "on_leave" })}>
+                              <PauseCircle className="h-3.5 w-3.5 mr-2 text-amber-400" />
+                              Place on Leave
+                            </DropdownMenuItem>
+                          )}
+                          {emp.status !== "suspended" && emp.status !== "terminated" && emp.status !== "resigned" && (
+                            <DropdownMenuItem onClick={() => setDialog({ employeeId: emp.id, status: "suspended" })}>
+                              <UserX className="h-3.5 w-3.5 mr-2 text-orange-400" />
+                              Suspend
+                            </DropdownMenuItem>
+                          )}
+                          {emp.status !== "terminated" && emp.status !== "resigned" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDialog({ employeeId: emp.id, status: "resigned" })} className="text-muted-foreground">
+                                <UserMinus className="h-3.5 w-3.5 mr-2" />
+                                Record Resignation
                               </DropdownMenuItem>
-                            ))}
+                              <DropdownMenuItem onClick={() => setDialog({ employeeId: emp.id, status: "terminated" })} className="text-destructive focus:text-destructive">
+                                <UserX className="h-3.5 w-3.5 mr-2" />
+                                Terminate
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(emp.id)} className="text-destructive focus:text-destructive">
                             <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -218,6 +234,14 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
           </table>
         </div>
       </Card>
+
+      {dialog && (
+        <EmployeeStatusDialog
+          employeeId={dialog.employeeId}
+          targetStatus={dialog.status}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }

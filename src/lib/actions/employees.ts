@@ -50,6 +50,7 @@ export async function getEmployees(
       unit: true,
       employmentType: true,
       status: true,
+      leaveType: true,
       photoUrl: true,
       startDate: true,
       personalEmail: true,
@@ -73,7 +74,7 @@ export async function getEmployee(id: string) {
 
 export async function getEmployeesForSelect(tenantId: string) {
   return prisma.employee.findMany({
-    where: { tenantId, status: { not: "terminated" } },
+    where: { tenantId, status: { notIn: ["terminated", "resigned"] } },
     select: { id: true, firstName: true, lastName: true, jobTitle: true, employeeNumber: true },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
@@ -116,6 +117,8 @@ export async function getEmployeeStats(tenantId: string) {
     onLeave: byStatus.on_leave || 0,
     suspended: byStatus.suspended || 0,
     terminated: byStatus.terminated || 0,
+    resigned: byStatus.resigned || 0,
+    inactive: (byStatus.terminated || 0) + (byStatus.resigned || 0),
     byDepartment,
     byType,
     recentHires,
@@ -256,11 +259,32 @@ export async function updateEmployee(id: string, formData: FormData) {
   return { success: true };
 }
 
-export async function updateEmployeeStatus(id: string, status: string) {
+export async function updateEmployeeStatus(
+  id: string,
+  status: string,
+  opts?: { leaveType?: string; leaveEndDate?: string; terminationReason?: string }
+) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
 
-  await prisma.employee.update({ where: { id }, data: { status } });
+  const data: Record<string, unknown> = { status };
+
+  if (status === "on_leave") {
+    data.leaveType = opts?.leaveType ?? null;
+    data.leaveEndDate = opts?.leaveEndDate ? new Date(opts.leaveEndDate) : null;
+    data.terminationReason = null;
+  } else if (status === "terminated" || status === "resigned") {
+    data.terminationReason = opts?.terminationReason ?? null;
+    data.leaveType = null;
+    data.leaveEndDate = null;
+  } else {
+    // active, suspended — clear all
+    data.leaveType = null;
+    data.leaveEndDate = null;
+    data.terminationReason = null;
+  }
+
+  await prisma.employee.update({ where: { id }, data });
   revalidatePath("/africs/hr/employees");
   revalidatePath(`/africs/hr/employees/${id}`);
   return { success: true };
