@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createEmployee, updateEmployee } from "@/lib/actions/employees";
 import { EmployeeAvatar } from "./employee-avatar";
+import { CountrySelect } from "@/components/ui/country-select";
 import { Camera, Loader2, Save, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Manager {
@@ -28,7 +29,9 @@ interface EmployeeData {
   dateOfBirth: Date | string | null;
   gender: string | null;
   nationality: string | null;
+  citizenship: string | null;
   nationalIdNumber: string | null;
+  taxIdNumber: string | null;
   photoUrl: string | null;
   personalEmail: string | null;
   personalPhone: string | null;
@@ -219,10 +222,16 @@ export function EmployeeForm({ managers, employee }: Props) {
                 </select>
               </Field>
               <Field label="Nationality">
-                <Input name="nationality" defaultValue={employee?.nationality ?? ""} className="h-9" />
+                <CountrySelect name="nationality" value={employee?.nationality} />
+              </Field>
+              <Field label="Citizenship">
+                <CountrySelect name="citizenship" value={employee?.citizenship} />
               </Field>
               <Field label="National ID Number">
                 <Input name="nationalIdNumber" defaultValue={employee?.nationalIdNumber ?? ""} className="h-9" />
+              </Field>
+              <Field label="Tax Identification Number (TIN)">
+                <Input name="taxIdNumber" defaultValue={employee?.taxIdNumber ?? ""} className="h-9 font-mono" placeholder="e.g. 1234567890" />
               </Field>
               <Field label="Employee Number">
                 <Input name="employeeNumber" defaultValue={employee?.employeeNumber ?? ""} placeholder="Auto-generated if blank" className="h-9 font-mono" />

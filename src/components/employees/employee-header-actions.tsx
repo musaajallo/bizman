@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, ChevronDown, UserCheck, UserX, PauseCircle, UserMinus } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, UserCheck, UserX, PauseCircle, UserMinus, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +18,10 @@ type StatusTarget = "on_leave" | "terminated" | "resigned" | "suspended" | "acti
 interface Props {
   employeeId: string;
   currentStatus: string;
+  employeeNumber: string;
 }
 
-export function EmployeeHeaderActions({ employeeId, currentStatus }: Props) {
+export function EmployeeHeaderActions({ employeeId, currentStatus, employeeNumber }: Props) {
   const [dialogStatus, setDialogStatus] = useState<StatusTarget>(null);
 
   const isActive = currentStatus === "active";
@@ -84,6 +85,13 @@ export function EmployeeHeaderActions({ employeeId, currentStatus }: Props) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        <a href={`/api/employees/${employeeId}/profile/pdf`} download={`profile-${employeeNumber}.pdf`}>
+          <Button size="sm" variant="outline" className="gap-2">
+            <FileText className="h-3.5 w-3.5" />
+            Export PDF
+          </Button>
+        </a>
 
         <Link href={`/africs/hr/employees/${employeeId}/edit`}>
           <Button size="sm" variant="outline" className="gap-2">

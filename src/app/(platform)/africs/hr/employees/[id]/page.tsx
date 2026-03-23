@@ -33,7 +33,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       <TopBar
         title={`${employee.firstName} ${employee.lastName}`}
         subtitle={[employee.jobTitle, employee.department].filter(Boolean).join(" · ")}
-        actions={<EmployeeHeaderActions employeeId={id} currentStatus={employee.status} />}
+        actions={<EmployeeHeaderActions employeeId={id} currentStatus={employee.status} employeeNumber={employee.employeeNumber} />}
       />
       <div className="p-6 space-y-6">
         {/* Header card */}

@@ -918,7 +918,9 @@ model Employee {
   dateOfBirth         DateTime?
   gender              String?
   nationality         String?
+  citizenship         String?
   nationalIdNumber    String?
+  taxIdNumber         String?
   photoUrl            String?   @db.Text
 
   // Contact

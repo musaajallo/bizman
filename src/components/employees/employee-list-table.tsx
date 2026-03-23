@@ -136,7 +136,7 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
             <thead>
               <tr className="border-b">
                 <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Employee</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground hidden sm:table-cell">ID</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">ID</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Title</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground hidden md:table-cell">Department</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground hidden lg:table-cell">Type</th>
@@ -170,7 +170,7 @@ export function EmployeeListTable({ employees, accentColor }: Props) {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-mono text-xs text-muted-foreground hidden sm:table-cell">{emp.employeeNumber}</td>
+                    <td className="py-3 px-4 font-mono text-xs text-muted-foreground">{emp.employeeNumber}</td>
                     <td className="py-3 px-4 text-muted-foreground">{emp.jobTitle || "—"}</td>
                     <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{emp.department || "—"}</td>
                     <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{typeLabels[emp.employmentType] || emp.employmentType}</td>
