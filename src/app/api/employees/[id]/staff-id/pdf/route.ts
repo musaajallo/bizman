@@ -27,6 +27,11 @@ export async function GET(
       photoUrl: employee.photoUrl,
       startDate: employee.startDate,
       endDate: employee.endDate,
+      emergencyContactName: employee.emergencyContactName,
+      emergencyContactPhone: employee.emergencyContactPhone,
+      emergencyContactRelationship: employee.emergencyContactRelationship,
+      personalPhone: employee.personalPhone,
+      personalEmail: employee.personalEmail,
     },
     tenant: {
       name: employee.tenant.name,

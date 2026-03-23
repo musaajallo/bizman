@@ -12,6 +12,7 @@ interface Props {
   };
   tenant: {
     name: string;
+    logoUrl?: string | null;
     primaryColor: string | null;
     accentColor: string | null;
   };
@@ -19,8 +20,9 @@ interface Props {
 
 export function EmployeeBusinessCardPdf({ employee, tenant }: Props) {
   const color = tenant.accentColor || tenant.primaryColor || "#4F6EF7";
+  const initials = `${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toUpperCase();
 
-  const styles = StyleSheet.create({
+  const shared = StyleSheet.create({
     page: {
       width: "3.5in",
       height: "2in",
@@ -28,6 +30,9 @@ export function EmployeeBusinessCardPdf({ employee, tenant }: Props) {
       backgroundColor: "#ffffff",
       fontFamily: "Helvetica",
     },
+  });
+
+  const front = StyleSheet.create({
     topBar: {
       position: "absolute",
       top: 0,
@@ -91,41 +96,132 @@ export function EmployeeBusinessCardPdf({ employee, tenant }: Props) {
     },
   });
 
-  const initials = `${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toUpperCase();
+  const back = StyleSheet.create({
+    page: {
+      width: "3.5in",
+      height: "2in",
+      padding: 0,
+      backgroundColor: color,
+      fontFamily: "Helvetica",
+    },
+    // Decorative circles
+    circleTopRight: {
+      position: "absolute",
+      top: -36,
+      right: -36,
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: "#ffffff",
+      opacity: 0.1,
+    },
+    circleBottomLeft: {
+      position: "absolute",
+      bottom: -48,
+      left: -48,
+      width: 130,
+      height: 130,
+      borderRadius: 65,
+      backgroundColor: "#ffffff",
+      opacity: 0.1,
+    },
+    bottomStrip: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 6,
+      backgroundColor: "rgba(0,0,0,0.15)",
+    },
+    content: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 40,
+    },
+    logo: { height: 30, maxWidth: 140, objectFit: "contain" },
+    companyNameLg: {
+      color: "#ffffff",
+      fontSize: 18,
+      fontFamily: "Helvetica-Bold",
+      textAlign: "center",
+    },
+    dividerLine: {
+      width: 40,
+      height: 1,
+      backgroundColor: "rgba(255,255,255,0.4)",
+      marginVertical: 8,
+    },
+    tagline: {
+      color: "rgba(255,255,255,0.6)",
+      fontSize: 7,
+      textAlign: "center",
+      textTransform: "uppercase",
+      letterSpacing: 1.5,
+    },
+    website: {
+      color: "rgba(255,255,255,0.4)",
+      fontSize: 7,
+      textAlign: "center",
+      marginTop: 6,
+    },
+  });
 
   return (
     <Document>
-      <Page size={[252, 144]} style={styles.page}>
-        <View style={styles.topBar} />
-        <View style={styles.body}>
-          <View style={styles.photoContainer}>
+      {/* ── FRONT ──────────────────────────────────────────────── */}
+      <Page size={[252, 144]} style={shared.page}>
+        <View style={front.topBar} />
+        <View style={front.body}>
+          <View style={front.photoContainer}>
             {employee.photoUrl ? (
-              <Image src={employee.photoUrl} style={styles.photo} />
+              <Image src={employee.photoUrl} style={front.photo} />
             ) : (
-              <View style={styles.initialsBox}>
-                <Text style={styles.initialsText}>{initials}</Text>
+              <View style={front.initialsBox}>
+                <Text style={front.initialsText}>{initials}</Text>
               </View>
             )}
           </View>
-          <View style={styles.divider} />
-          <View style={styles.info}>
-            <Text style={styles.name}>{employee.firstName} {employee.lastName}</Text>
-            {employee.jobTitle && <Text style={styles.title}>{employee.jobTitle}</Text>}
-            {employee.department && <Text style={styles.dept}>{employee.department}</Text>}
-            <View style={styles.lineDivider} />
+          <View style={front.divider} />
+          <View style={front.info}>
+            <Text style={front.name}>{employee.firstName} {employee.lastName}</Text>
+            {employee.jobTitle && <Text style={front.title}>{employee.jobTitle}</Text>}
+            {employee.department && <Text style={front.dept}>{employee.department}</Text>}
+            <View style={front.lineDivider} />
             {employee.personalEmail && (
-              <View style={styles.contactRow}>
-                <Text style={styles.contactText}>{employee.personalEmail}</Text>
+              <View style={front.contactRow}>
+                <Text style={front.contactText}>{employee.personalEmail}</Text>
               </View>
             )}
             {employee.personalPhone && (
-              <View style={styles.contactRow}>
-                <Text style={styles.contactText}>{employee.personalPhone}</Text>
+              <View style={front.contactRow}>
+                <Text style={front.contactText}>{employee.personalPhone}</Text>
               </View>
             )}
           </View>
         </View>
-        <Text style={styles.companyName}>{tenant.name}</Text>
+        <Text style={front.companyName}>{tenant.name}</Text>
+      </Page>
+
+      {/* ── BACK ───────────────────────────────────────────────── */}
+      <Page size={[252, 144]} style={back.page}>
+        <View style={back.circleTopRight} />
+        <View style={back.circleBottomLeft} />
+        <View style={back.bottomStrip} />
+        <View style={back.content}>
+          {tenant.logoUrl ? (
+            <Image src={tenant.logoUrl} style={back.logo} />
+          ) : (
+            <Text style={back.companyNameLg}>{tenant.name}</Text>
+          )}
+          <View style={back.dividerLine} />
+          <Text style={back.tagline}>
+            {employee.jobTitle ?? tenant.name}
+          </Text>
+          <Text style={back.website}>
+            {tenant.name.toLowerCase().replace(/\s/g, "")}.com
+          </Text>
+        </View>
       </Page>
     </Document>
   );
