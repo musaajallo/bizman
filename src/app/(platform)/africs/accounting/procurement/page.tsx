@@ -1,23 +1,69 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { ShoppingBasket } from "lucide-react";
+import { getRequisitions, getPurchaseOrders, getProcurementStats } from "@/lib/actions/procurement";
+import { ProcurementStatsCards } from "@/components/procurement/procurement-stats-cards";
+import { RequisitionListTable } from "@/components/procurement/requisition-list-table";
+import { PoListTable } from "@/components/procurement/po-list-table";
+import { Plus } from "lucide-react";
 
-export default function ProcurementPage() {
+export default async function ProcurementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab = "requisitions" } = await searchParams;
+
+  const [stats, requisitions, orders] = await Promise.all([
+    getProcurementStats(),
+    tab === "requisitions" ? getRequisitions() : Promise.resolve([]),
+    tab === "orders" ? getPurchaseOrders() : Promise.resolve([]),
+  ]);
+
+  const tabs = [
+    { id: "requisitions", label: "Requisitions" },
+    { id: "orders",       label: "Purchase Orders" },
+  ];
+
   return (
     <div>
-      <TopBar title="Procurement" subtitle="Purchase orders and requisitions" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <ShoppingBasket className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Procurement</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Purchase orders, requisitions, and supplier bidding are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Procurement"
+        subtitle="Purchase requisitions and orders"
+        actions={
+          <div className="flex items-center gap-2">
+            {tab === "requisitions" && (
+              <Link href="/africs/accounting/procurement/requisitions/new">
+                <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />New Requisition</Button>
+              </Link>
+            )}
+            {tab === "orders" && (
+              <Link href="/africs/accounting/procurement/orders/new">
+                <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />New Purchase Order</Button>
+              </Link>
+            )}
+          </div>
+        }
+      />
+      <div className="p-6 space-y-4">
+        <ProcurementStatsCards stats={stats} />
+
+        <div className="flex gap-1 border-b border-border pb-0">
+          {tabs.map((t) => (
+            <Link
+              key={t.id}
+              href={`/africs/accounting/procurement?tab=${t.id}`}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === t.id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+
+        {tab === "requisitions" && <RequisitionListTable requisitions={requisitions} />}
+        {tab === "orders" && <PoListTable orders={orders} />}
       </div>
     </div>
   );

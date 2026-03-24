@@ -65,6 +65,15 @@ model User {
 
   // Leave settings
   leaveSettingsLog LeaveSettingsLog[]
+
+  // Procurement
+  purchaseRequisitions         PurchaseRequisition[]  @relation("RequisitionRequester")
+  reviewedRequisitions         PurchaseRequisition[]  @relation("RequisitionReviewer")
+  createdPurchaseOrders        PurchaseOrder[]
+  goodsReceipts                GoodsReceipt[]
+
+  // Assets
+  assetAssignments AssetAssignment[] @relation("AssetAssigner")
 }
 
 model Account {
@@ -191,6 +200,16 @@ model Tenant {
   overtimeRequests    OvertimeRequest[]
   overtimeSettings    OvertimeSettings?
   overtimeSettingsLog OvertimeSettingsLog[]
+
+  // Procurement
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  goodsReceipts        GoodsReceipt[]
+  procurementSettings  ProcurementSettings?
+
+  // Assets
+  assets        Asset[]
+  assetSettings AssetSettings?
 }
 
 model TenantUser {
@@ -1066,6 +1085,7 @@ model Employee {
   timesheets    Timesheet[]
   overtimeRequests  OvertimeRequest[]
   reviewedOvertime  OvertimeRequest[] @relation("OvertimeReviewer")
+  assetAssignments  AssetAssignment[]
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -1343,8 +1363,9 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bills  Bill[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bills          Bill[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([tenantId, status])
   @@index([tenantId, name])
@@ -1380,9 +1401,10 @@ model Bill {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Restrict)
-  payments BillPayment[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendor        Vendor         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  payments      BillPayment[]
+  purchaseOrder PurchaseOrder?
 
   @@unique([tenantId, billNumber])
   @@index([tenantId, status])
@@ -1527,4 +1549,231 @@ model OvertimeRequest {
   @@index([tenantId, status])
   @@index([employeeId, status])
   @@index([tenantId, date])
+}
+
+// --- Procurement ---
+
+model ProcurementSettings {
+  id                    String @id @default(cuid())
+  tenantId              String @unique
+  requisitionPrefix     String @default("REQ")
+  nextRequisitionNumber Int    @default(1)
+  poPrefix              String @default("PO")
+  nextPoNumber          Int    @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model PurchaseRequisition {
+  id                String    @id @default(cuid())
+  tenantId          String
+  requisitionNumber String
+  title             String
+  description       String?   @db.Text
+  requestedById     String
+  department        String?
+  priority          String    @default("normal") // low, normal, high, urgent
+  status            String    @default("draft")  // draft, pending_approval, approved, rejected, converted, cancelled
+  requiredByDate    DateTime?
+  notes             String?   @db.Text
+  reviewedById      String?
+  reviewNote        String?   @db.Text
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy    User                      @relation("RequisitionRequester", fields: [requestedById], references: [id])
+  reviewedBy     User?                     @relation("RequisitionReviewer", fields: [reviewedById], references: [id])
+  items          PurchaseRequisitionItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([tenantId, requisitionNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, requestedById])
+}
+
+model PurchaseRequisitionItem {
+  id              String   @id @default(cuid())
+  requisitionId   String
+  description     String
+  quantity        Decimal  @db.Decimal(12, 2)
+  unit            String?
+  estimatedUnitPrice Decimal? @db.Decimal(12, 2)
+  estimatedTotal  Decimal? @db.Decimal(12, 2)
+  order           Int      @default(0)
+
+  requisition PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  @@index([requisitionId])
+}
+
+model PurchaseOrder {
+  id               String    @id @default(cuid())
+  tenantId         String
+  vendorId         String
+  requisitionId    String?
+  poNumber         String
+  title            String
+  description      String?   @db.Text
+  currency         String    @default("GMD")
+  subtotal         Decimal   @db.Decimal(12, 2) @default(0)
+  taxRate          Decimal?  @db.Decimal(5, 2)
+  taxAmount        Decimal   @db.Decimal(12, 2) @default(0)
+  totalAmount      Decimal   @db.Decimal(12, 2) @default(0)
+  status           String    @default("draft") // draft, sent, partially_received, received, billed, cancelled
+  issueDate        DateTime  @default(now())
+  expectedDelivery DateTime?
+  receivedDate     DateTime?
+  billId           String?   @unique
+  notes            String?   @db.Text
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendor       Vendor               @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  requisition  PurchaseRequisition? @relation(fields: [requisitionId], references: [id], onDelete: SetNull)
+  bill         Bill?                @relation(fields: [billId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation(fields: [createdById], references: [id])
+  items        PurchaseOrderItem[]
+  goodsReceipts GoodsReceipt[]
+  assets       Asset[]
+
+  @@unique([tenantId, poNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, vendorId])
+}
+
+model PurchaseOrderItem {
+  id               String  @id @default(cuid())
+  purchaseOrderId  String
+  description      String
+  quantity         Decimal @db.Decimal(12, 2)
+  unit             String?
+  unitPrice        Decimal @db.Decimal(12, 2)
+  totalPrice       Decimal @db.Decimal(12, 2)
+  quantityReceived Decimal @db.Decimal(12, 2) @default(0)
+  order            Int     @default(0)
+
+  purchaseOrder    PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  goodsReceiptItems GoodsReceiptItem[]
+
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceipt {
+  id              String   @id @default(cuid())
+  tenantId        String
+  purchaseOrderId String
+  receiptNumber   String
+  receivedDate    DateTime @default(now())
+  receivedById    String
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedBy    User               @relation(fields: [receivedById], references: [id])
+  items         GoodsReceiptItem[]
+
+  @@index([tenantId])
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceiptItem {
+  id               String  @id @default(cuid())
+  goodsReceiptId   String
+  poItemId         String
+  quantityReceived Decimal @db.Decimal(12, 2)
+  notes            String?
+
+  goodsReceipt GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  poItem       PurchaseOrderItem @relation(fields: [poItemId], references: [id], onDelete: Cascade)
+
+  @@index([goodsReceiptId])
+}
+
+// --- Assets ---
+
+model AssetSettings {
+  id              String @id @default(cuid())
+  tenantId        String @unique
+  assetPrefix     String @default("AST")
+  nextAssetNumber Int    @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  assetNumber        String
+  name               String
+  description        String?   @db.Text
+  category           String    @default("equipment") // equipment, furniture, vehicle, technology, office_supplies, other
+  status             String    @default("active")    // active, in_maintenance, disposed, lost, retired
+  serialNumber       String?
+  brand              String?
+  model              String?
+  location           String?
+  purchaseDate       DateTime?
+  purchasePrice      Decimal?  @db.Decimal(12, 2)
+  currency           String    @default("GMD")
+  warrantyExpiry     DateTime?
+  condition          String    @default("good") // new, good, fair, poor
+  currentValue       Decimal?  @db.Decimal(12, 2)
+  depreciationMethod String?   // straight_line, declining_balance, none
+  usefulLifeMonths   Int?
+  salvageValue       Decimal?  @db.Decimal(12, 2)
+  notes              String?   @db.Text
+  purchaseOrderId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  assignments   AssetAssignment[]
+  maintenance   AssetMaintenance[]
+
+  @@unique([tenantId, assetNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, category])
+}
+
+model AssetAssignment {
+  id           String    @id @default(cuid())
+  assetId      String
+  employeeId   String?
+  location     String?
+  assignedDate DateTime  @default(now())
+  returnedDate DateTime?
+  notes        String?
+  assignedById String
+  createdAt    DateTime  @default(now())
+
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  assignedBy User      @relation("AssetAssigner", fields: [assignedById], references: [id])
+
+  @@index([assetId])
+  @@index([employeeId])
+}
+
+model AssetMaintenance {
+  id                  String    @id @default(cuid())
+  assetId             String
+  title               String
+  description         String?   @db.Text
+  maintenanceDate     DateTime
+  nextMaintenanceDate DateTime?
+  cost                Decimal?  @db.Decimal(12, 2)
+  currency            String    @default("GMD")
+  performedBy         String?
+  status              String    @default("completed") // scheduled, in_progress, completed
+  createdAt           DateTime  @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
 }
