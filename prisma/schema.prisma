@@ -180,6 +180,7 @@ model Tenant {
 
   // Overtime
   overtimeRequests OvertimeRequest[]
+  overtimeSettings OvertimeSettings?
 }
 
 model TenantUser {
@@ -1383,6 +1384,16 @@ model TimesheetEntry {
 }
 
 // --- Overtime ---
+
+model OvertimeSettings {
+  id                     String  @id @default(cuid())
+  tenantId               String  @unique
+  standardRateMultiplier Decimal @db.Decimal(5, 2) @default(1.5)
+  weekendRateMultiplier  Decimal @db.Decimal(5, 2) @default(2.0)
+  holidayRateMultiplier  Decimal @db.Decimal(5, 2) @default(2.5)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
 
 model OvertimeRequest {
   id           String    @id @default(cuid())

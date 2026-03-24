@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
 import { getWeekStart } from "@/lib/timesheet-constants";
-import { calculateOvertimePay, type OvertimeTypeValue } from "@/lib/overtime-constants";
+import { calculateOvertimePay, type OvertimeTypeValue, type OvertimeRates } from "@/lib/overtime-constants";
 
 function toNum(d: unknown): number {
   if (d === null || d === undefined) return 0;
@@ -170,19 +170,23 @@ export async function getApprovedOvertimeForPayroll(employeeId: string, month: n
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 1));
 
-  const requests = await prisma.overtimeRequest.findMany({
-    where: {
-      tenantId: owner.id,
-      employeeId,
-      status: "approved",
-      date: { gte: start, lt: end },
-    },
-    include: {
-      employee: { select: { basicSalary: true, currency: true } },
-    },
-  });
+  const [requests, settingsRow] = await Promise.all([
+    prisma.overtimeRequest.findMany({
+      where: { tenantId: owner.id, employeeId, status: "approved", date: { gte: start, lt: end } },
+      include: { employee: { select: { basicSalary: true, currency: true } } },
+    }),
+    prisma.overtimeSettings.findUnique({ where: { tenantId: owner.id } }),
+  ]);
 
   if (requests.length === 0) return { totalHours: 0, totalPay: 0, averageRate: 0 };
+
+  const rates: OvertimeRates = settingsRow
+    ? {
+        standardRateMultiplier: toNum(settingsRow.standardRateMultiplier),
+        weekendRateMultiplier: toNum(settingsRow.weekendRateMultiplier),
+        holidayRateMultiplier: toNum(settingsRow.holidayRateMultiplier),
+      }
+    : { standardRateMultiplier: 1.5, weekendRateMultiplier: 2.0, holidayRateMultiplier: 2.5 };
 
   let totalHours = 0;
   let totalPay = 0;
@@ -190,7 +194,7 @@ export async function getApprovedOvertimeForPayroll(employeeId: string, month: n
   for (const r of requests) {
     const hours = toNum(r.hours);
     const basic = toNum(r.employee.basicSalary);
-    const { pay } = calculateOvertimePay(basic, hours, r.overtimeType as OvertimeTypeValue);
+    const { pay } = calculateOvertimePay(basic, hours, r.overtimeType as OvertimeTypeValue, rates);
     totalHours += hours;
     totalPay += pay;
   }

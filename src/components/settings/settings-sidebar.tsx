@@ -29,6 +29,7 @@ import {
   Youtube,
   Music,
   Server,
+  AlarmClock,
 } from "lucide-react";
 
 const SETTINGS_NAV = [
@@ -53,6 +54,13 @@ const SETTINGS_NAV = [
       { label: "Bank Details", href: "/africs/settings/invoices/bank", icon: Landmark },
       { label: "Default Content", href: "/africs/settings/invoices/defaults", icon: FileText },
       { label: "Recurring", href: "/africs/settings/invoices/recurring", icon: RefreshCw },
+    ],
+  },
+  {
+    group: "HR",
+    prefix: "/africs/settings/hr",
+    items: [
+      { label: "Overtime", href: "/africs/settings/hr/overtime", icon: AlarmClock },
     ],
   },
   {
