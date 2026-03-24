@@ -1,23 +1,62 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { CalendarOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { getLeaveDashboardStats, getLeaveRequests } from "@/lib/actions/leave";
+import { getOwnerBusiness } from "@/lib/actions/tenants";
+import { notFound } from "next/navigation";
+import { LeaveDashboardCards } from "@/components/leave/leave-dashboard-cards";
+import { LeaveRequestTable } from "@/components/leave/leave-request-table";
+import { Plus } from "lucide-react";
 
-export default function TimeOffPage() {
+export default async function TimeOffPage() {
+  const owner = await getOwnerBusiness();
+  if (!owner) notFound();
+
+  const [stats, requests] = await Promise.all([
+    getLeaveDashboardStats(),
+    getLeaveRequests(),
+  ]);
+
+  // Serialize dates before passing to client components
+  const serialized = requests.map((r) => ({
+    ...r,
+    startDate: r.startDate.toISOString(),
+    endDate: r.endDate.toISOString(),
+    reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+
   return (
     <div>
-      <TopBar title="Time Off" subtitle="Leave requests and attendance" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <CalendarOff className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Time Off</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Leave requests, vacation tracking, and attendance management are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Time Off"
+        subtitle="Leave requests and balances"
+        actions={
+          <div className="flex gap-2">
+            <Link href="/africs/hr/time-off/balances">
+              <Button size="sm" variant="outline">Balances</Button>
+            </Link>
+            <Link href="/africs/hr/time-off/requests/new">
+              <Button size="sm" className="gap-2">
+                <Plus className="h-3.5 w-3.5" />
+                New Request
+              </Button>
+            </Link>
+          </div>
+        }
+      />
+      <div className="p-6 space-y-6">
+        <LeaveDashboardCards
+          pending={stats.pending}
+          approved={stats.approved}
+          onLeaveNow={stats.onLeaveNow}
+          totalRequests={stats.totalRequests}
+        />
+        <div>
+          <h3 className="text-sm font-semibold mb-3">All Leave Requests</h3>
+          <LeaveRequestTable requests={serialized} />
+        </div>
       </div>
     </div>
   );

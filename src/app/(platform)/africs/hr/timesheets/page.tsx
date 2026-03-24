@@ -1,23 +1,61 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Timer } from "lucide-react";
+import { getTimesheets, getTimesheetStats } from "@/lib/actions/timesheets";
+import { TIMESHEET_STATUSES } from "@/lib/timesheet-constants";
+import { TimesheetListTable } from "@/components/timesheets/timesheet-list-table";
+import { TimesheetStatsCards } from "@/components/timesheets/timesheet-stats-cards";
+import { Plus } from "lucide-react";
 
-export default function HrTimesheetsPage() {
+export default async function TimesheetsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const [timesheets, stats] = await Promise.all([
+    getTimesheets({ status }),
+    getTimesheetStats(),
+  ]);
+
   return (
     <div>
-      <TopBar title="Timesheets" subtitle="Employee time tracking and approvals" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <Timer className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Timesheets</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Employee time tracking, weekly submissions, and manager approvals are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Timesheets"
+        subtitle="Employee weekly time submissions"
+        actions={
+          <Link href="/africs/hr/timesheets/new">
+            <Button size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Timesheet
+            </Button>
+          </Link>
+        }
+      />
+      <div className="p-6 space-y-4">
+        <TimesheetStatsCards stats={stats} />
+        <div className="flex gap-1 border-b border-border pb-0">
+          {TIMESHEET_STATUSES.map((s) => {
+            const isActive = (status ?? "") === s.value;
+            const href = s.value
+              ? `/africs/hr/timesheets?status=${s.value}`
+              : "/africs/hr/timesheets";
+            return (
+              <Link
+                key={s.value}
+                href={href}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  isActive
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+        </div>
+        <TimesheetListTable timesheets={timesheets} />
       </div>
     </div>
   );

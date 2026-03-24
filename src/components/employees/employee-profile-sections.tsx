@@ -7,7 +7,9 @@ interface Employee {
   dateOfBirth: Date | string | null;
   gender: string | null;
   nationality: string | null;
+  citizenship: string | null;
   nationalIdNumber: string | null;
+  taxIdNumber: string | null;
   personalEmail: string | null;
   personalPhone: string | null;
   homeAddress: string | null;
@@ -89,7 +91,9 @@ export function EmployeeProfileSections({ employee }: { employee: Employee }) {
           <Row label="Date of Birth" value={fmt(employee.dateOfBirth)} />
           <Row label="Gender" value={employee.gender ? genderLabels[employee.gender] || employee.gender : null} />
           <Row label="Nationality" value={employee.nationality} />
+          <Row label="Citizenship" value={employee.citizenship} />
           <Row label="National ID" value={employee.nationalIdNumber} />
+          <Row label="Tax ID (TIN)" value={employee.taxIdNumber ? <span className="font-mono">{employee.taxIdNumber}</span> : null} />
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@ import { EmployeeProfileSections } from "./employee-profile-sections";
 import { EmployeeBusinessCard } from "./employee-business-card";
 import { EmployeeStaffIdCard } from "./employee-staff-id-card";
 import { EmployeeDocumentList } from "./employee-document-list";
+import { PayslipHistory } from "@/components/payroll/payslip-history";
 
 type Employee = Parameters<typeof EmployeeProfileSections>[0]["employee"] &
   Parameters<typeof EmployeeBusinessCard>[0]["employee"] &
@@ -15,15 +16,25 @@ type Employee = Parameters<typeof EmployeeProfileSections>[0]["employee"] &
 type Tenant = Parameters<typeof EmployeeBusinessCard>[0]["tenant"] &
   Parameters<typeof EmployeeStaffIdCard>[0]["tenant"];
 
-const TABS = ["Profile", "Business Card", "Staff ID", "Documents"] as const;
+type Payslips = Parameters<typeof PayslipHistory>[0]["payslips"];
 
-export function EmployeeDetailTabs({ employee, tenant }: { employee: Employee; tenant: Tenant }) {
+const TABS = ["Profile", "Business Card", "Staff ID", "Documents", "Payslips"] as const;
+
+export function EmployeeDetailTabs({
+  employee,
+  tenant,
+  payslips,
+}: {
+  employee: Employee;
+  tenant: Tenant;
+  payslips: Payslips;
+}) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
 
   return (
     <div className="space-y-4">
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border pb-0">
+      <div className="flex gap-1 border-b border-border pb-0 flex-wrap">
         {TABS.map((t) => (
           <button
             key={t}
@@ -44,6 +55,7 @@ export function EmployeeDetailTabs({ employee, tenant }: { employee: Employee; t
       {tab === "Business Card" && <EmployeeBusinessCard employee={employee} tenant={tenant} />}
       {tab === "Staff ID" && <EmployeeStaffIdCard employee={employee} tenant={tenant} />}
       {tab === "Documents" && <EmployeeDocumentList employeeId={employee.id} documents={employee.documents} />}
+      {tab === "Payslips" && <PayslipHistory payslips={payslips} />}
     </div>
   );
 }

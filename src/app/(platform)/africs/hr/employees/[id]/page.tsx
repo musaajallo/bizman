@@ -1,6 +1,7 @@
 import { TopBar } from "@/components/layout/top-bar";
 import { getEmployee } from "@/lib/actions/employees";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
+import { getPayslipsForEmployee } from "@/lib/actions/payroll";
 import { notFound } from "next/navigation";
 import { EmployeeAvatar } from "@/components/employees/employee-avatar";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
@@ -9,9 +10,10 @@ import { EmployeeHeaderActions } from "@/components/employees/employee-header-ac
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [employee, owner] = await Promise.all([
+  const [employee, owner, payslips] = await Promise.all([
     getEmployee(id),
     getOwnerBusiness(),
+    getPayslipsForEmployee(id),
   ]);
 
   if (!employee || !owner) notFound();
@@ -79,6 +81,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
             documents: employee.documents,
           }}
           tenant={tenant}
+          payslips={payslips}
         />
       </div>
     </div>

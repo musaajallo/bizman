@@ -1,23 +1,64 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Receipt } from "lucide-react";
+import { getExpenses, getExpenseStats } from "@/lib/actions/expenses";
+import { EXPENSE_STATUSES } from "@/lib/expense-constants";
+import { ExpenseStatsCards } from "@/components/expenses/expense-stats-cards";
+import { ExpenseListTable } from "@/components/expenses/expense-list-table";
+import { Plus } from "lucide-react";
 
-export default function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const [expenses, stats] = await Promise.all([
+    getExpenses({ status }),
+    getExpenseStats(),
+  ]);
+
+  const currency = expenses[0]?.currency ?? "GMD";
+
   return (
     <div>
-      <TopBar title="Expenses" subtitle="Expense tracking and reimbursements" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <Receipt className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Expenses</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Expense claims, receipt uploads, and reimbursement approvals are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Expenses"
+        subtitle="Expense claims and reimbursements"
+        actions={
+          <Link href="/africs/accounting/expenses/new">
+            <Button size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Expense
+            </Button>
+          </Link>
+        }
+      />
+      <div className="p-6 space-y-4">
+        <div className="flex gap-1 border-b border-border pb-0 flex-wrap">
+          {EXPENSE_STATUSES.map((s) => {
+            const isActive = (status ?? "") === s.value;
+            const href = s.value
+              ? `/africs/accounting/expenses?status=${s.value}`
+              : "/africs/accounting/expenses";
+            return (
+              <Link
+                key={s.value}
+                href={href}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  isActive
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        <ExpenseStatsCards stats={stats} currency={currency} />
+        <ExpenseListTable expenses={expenses} />
       </div>
     </div>
   );

@@ -51,6 +51,14 @@ model User {
 
   // HR
   employees             Employee[]
+  reviewedLeaveRequests LeaveRequest[]
+
+  // Expenses
+  submittedExpenses Expense[] @relation("ExpenseSubmitter")
+  reviewedExpenses  Expense[] @relation("ExpenseReviewer")
+
+  // Timesheets
+  reviewedTimesheets Timesheet[] @relation("TimesheetReviewer")
 }
 
 model Account {
@@ -151,6 +159,24 @@ model Tenant {
 
   // HR
   employees         Employee[]
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+
+  // Payroll
+  payrollRuns       PayrollRun[]
+  payslips          Payslip[]
+
+  // Expenses
+  expenses          Expense[]
+
+  // Bills & Vendors
+  vendors      Vendor[]
+  bills        Bill[]
+  billPayments BillPayment[]
+  billSettings BillSettings?
+
+  // Timesheets
+  timesheets Timesheet[]
 }
 
 model TenantUser {
@@ -352,7 +378,8 @@ model Project {
   statuses     ProjectStatus[]
   milestones   Milestone[]
   activities   ProjectActivity[]
-  invoices     Invoice[]
+  invoices         Invoice[]
+  timesheetEntries TimesheetEntry[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status])
@@ -989,6 +1016,11 @@ model Employee {
   directReports Employee[] @relation("EmployeeManager")
   user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   documents     EmployeeDocument[]
+  leaveBalances LeaveBalance[]
+  leaveRequests LeaveRequest[]
+  payslips      Payslip[]
+  expenses      Expense[]
+  timesheets    Timesheet[]
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -1008,4 +1040,335 @@ model EmployeeDocument {
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
+}
+
+// --- Leave Management ---
+
+model LeaveBalance {
+  id         String   @id @default(cuid())
+  tenantId   String
+  employeeId String
+  year       Int
+  leaveType  String   // annual, sick, maternity, paternity, study, unpaid, compassionate
+  allocated  Int      @default(0)
+  used       Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, year, leaveType])
+  @@index([tenantId, year])
+}
+
+model LeaveRequest {
+  id           String    @id @default(cuid())
+  tenantId     String
+  employeeId   String
+  leaveType    String    // annual, sick, maternity, paternity, study, unpaid, compassionate
+  startDate    DateTime
+  endDate      DateTime
+  days         Int
+  reason       String?   @db.Text
+  // pending, approved, rejected, cancelled
+  status       String    @default("pending")
+  reviewedById String?
+  reviewNote   String?   @db.Text
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([employeeId, status])
+  @@index([tenantId, startDate, endDate])
+}
+
+// --- Payroll ---
+
+model PayrollRun {
+  id              String    @id @default(cuid())
+  tenantId        String
+
+  periodMonth     Int       // 1–12
+  periodYear      Int
+  periodLabel     String    // "March 2026" — denormalized for display
+
+  // draft, processing, paid
+  status          String    @default("draft")
+
+  currency        String    @default("USD")
+  totalGross      Decimal   @db.Decimal(14, 2) @default(0)
+  totalDeductions Decimal   @db.Decimal(14, 2) @default(0)
+  totalNet        Decimal   @db.Decimal(14, 2) @default(0)
+  employeeCount   Int       @default(0)
+
+  notes           String?   @db.Text
+  processedAt     DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payslips Payslip[]
+
+  @@unique([tenantId, periodMonth, periodYear])
+  @@index([tenantId, status])
+  @@index([tenantId, periodYear, periodMonth])
+}
+
+model Payslip {
+  id           String @id @default(cuid())
+  payrollRunId String
+  employeeId   String
+  tenantId     String
+
+  // Employee snapshot
+  employeeName   String
+  employeeNumber String
+  jobTitle       String?
+  department     String?
+
+  // Earnings
+  basicSalary        Decimal @db.Decimal(12, 2) @default(0)
+  housingAllowance   Decimal @db.Decimal(12, 2) @default(0)
+  transportAllowance Decimal @db.Decimal(12, 2) @default(0)
+  otherAllowance     Decimal @db.Decimal(12, 2) @default(0)
+  otherAllowanceLabel String?
+  grossPay           Decimal @db.Decimal(12, 2) @default(0)
+
+  // Deductions
+  pensionRate           Decimal @db.Decimal(5, 2)  @default(0)
+  pensionContribution   Decimal @db.Decimal(12, 2) @default(0)
+  medicalAidDeduction   Decimal @db.Decimal(12, 2) @default(0)
+  payeTax               Decimal @db.Decimal(12, 2) @default(0)
+  otherDeduction        Decimal @db.Decimal(12, 2) @default(0)
+  otherDeductionLabel   String?
+  totalDeductions       Decimal @db.Decimal(12, 2) @default(0)
+
+  netPay   Decimal @db.Decimal(12, 2) @default(0)
+  currency String  @default("USD")
+
+  // Bank snapshot
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+
+  // pending, processed, paid
+  status String @default("pending")
+  notes  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollRunId, employeeId])
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@index([payrollRunId, status])
+}
+
+// --- Expenses ---
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  value     String   @unique
+  label     String
+  isSystem  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  expenses Expense[]
+}
+
+model Expense {
+  id            String  @id @default(cuid())
+  tenantId      String
+  employeeId    String?
+  submittedById String
+
+  title       String
+  description String?  @db.Text
+  amount      Decimal  @db.Decimal(12, 2)
+  currency    String   @default("USD")
+  categoryId  String
+  expenseDate DateTime
+
+  receiptUrl String? @db.Text
+
+  // draft, submitted, approved, rejected, reimbursed
+  status String @default("draft")
+
+  notes        String?   @db.Text
+  reviewedById String?
+  reviewedAt   DateTime?
+  reimbursedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee    Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  submittedBy User            @relation("ExpenseSubmitter", fields: [submittedById], references: [id], onDelete: Cascade)
+  reviewedBy  User?           @relation("ExpenseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, employeeId])
+  @@index([tenantId, expenseDate])
+}
+
+// --- Bills & Vendors ---
+
+model Vendor {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String? @db.Text
+  website     String?
+
+  paymentTerms String @default("net30") // net15, net30, net60, due_on_receipt
+
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankBranch        String?
+
+  notes  String? @db.Text
+  status String  @default("active") // active, inactive
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bills  Bill[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, name])
+}
+
+model Bill {
+  id      String @id @default(cuid())
+  tenantId String
+  vendorId String
+
+  billNumber      String
+  referenceNumber String?
+  title           String
+  description     String? @db.Text
+
+  subtotal    Decimal  @db.Decimal(12, 2) @default(0)
+  taxRate     Decimal? @db.Decimal(5, 2)
+  taxAmount   Decimal  @db.Decimal(12, 2) @default(0)
+  totalAmount Decimal  @db.Decimal(12, 2) @default(0)
+  amountPaid  Decimal  @db.Decimal(12, 2) @default(0)
+  amountDue   Decimal  @db.Decimal(12, 2) @default(0)
+  currency    String   @default("GMD")
+
+  issueDate DateTime @default(now())
+  dueDate   DateTime
+  paidAt    DateTime?
+
+  // draft, approved, partially_paid, paid, overdue, void
+  status String @default("draft")
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  payments BillPayment[]
+
+  @@unique([tenantId, billNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, vendorId])
+  @@index([tenantId, dueDate])
+}
+
+model BillPayment {
+  id            String   @id @default(cuid())
+  billId        String
+  tenantId      String
+  amount        Decimal  @db.Decimal(12, 2)
+  paymentDate   DateTime @default(now())
+  paymentMethod String?
+  reference     String?
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  bill   Bill   @relation(fields: [billId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@index([tenantId])
+}
+
+model BillSettings {
+  id             String @id @default(cuid())
+  tenantId       String @unique
+  billPrefix     String @default("BILL")
+  nextBillNumber Int    @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// --- Timesheets ---
+
+model Timesheet {
+  id         String   @id @default(cuid())
+  tenantId   String
+  employeeId String
+  weekStart  DateTime @db.Date // UTC Monday
+
+  status     String  @default("draft") // draft, submitted, approved, rejected
+  totalHours Decimal @db.Decimal(5, 2) @default(0)
+
+  notes        String?   @db.Text // reviewer notes
+  submittedAt  DateTime?
+  reviewedById String?
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee   Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User?           @relation("TimesheetReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  entries    TimesheetEntry[]
+
+  @@unique([tenantId, employeeId, weekStart])
+  @@index([tenantId, status])
+  @@index([tenantId, weekStart])
+  @@index([employeeId])
+}
+
+model TimesheetEntry {
+  id          String   @id @default(cuid())
+  timesheetId String
+  date        DateTime @db.Date
+  hours       Decimal  @db.Decimal(5, 2)
+  category    String   @default("work") // work, meeting, training, admin, travel, sick, other
+  projectId   String?
+  description String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timesheet Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([timesheetId])
+  @@index([timesheetId, date])
 }

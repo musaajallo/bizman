@@ -1,23 +1,54 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { FileInput } from "lucide-react";
+import { getBills, getBillStats } from "@/lib/actions/bills";
+import { BILL_STATUSES } from "@/lib/bill-constants";
+import { BillListTable } from "@/components/bills/bill-list-table";
+import { BillStatsCards } from "@/components/bills/bill-stats-cards";
+import { Plus } from "lucide-react";
 
-export default function BillsPage() {
+export default async function BillsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const [bills, stats] = await Promise.all([getBills({ status }), getBillStats()]);
+
   return (
     <div>
-      <TopBar title="Bills" subtitle="Bill tracking and payments" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <FileInput className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Bills</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Bill management, due date tracking, and payment scheduling are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Bills"
+        subtitle="Supplier invoices and payment tracking"
+        actions={
+          <Link href="/africs/accounting/bills/new">
+            <Button size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Bill
+            </Button>
+          </Link>
+        }
+      />
+      <div className="p-6 space-y-4">
+        <BillStatsCards stats={stats} />
+        <div className="flex gap-1 border-b border-border pb-0">
+          {BILL_STATUSES.map((s) => {
+            const isActive = (status ?? "") === s.value;
+            const href = s.value ? `/africs/accounting/bills?status=${s.value}` : "/africs/accounting/bills";
+            return (
+              <Link
+                key={s.value}
+                href={href}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+        </div>
+        <BillListTable bills={bills} />
       </div>
     </div>
   );

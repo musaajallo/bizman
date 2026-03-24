@@ -1,23 +1,69 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { getPayrollRuns } from "@/lib/actions/payroll";
+import { PayrollRunList } from "@/components/payroll/payroll-run-list";
 
-export default function PayrollPage() {
+const STATUSES = [
+  { label: "All", value: "" },
+  { label: "Draft", value: "draft" },
+  { label: "Processing", value: "processing" },
+  { label: "Paid", value: "paid" },
+];
+
+export default async function PayrollPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; year?: string }>;
+}) {
+  const sp = await searchParams;
+  const runs = await getPayrollRuns({
+    status: sp.status || undefined,
+    year: sp.year ? parseInt(sp.year) : undefined,
+  });
+
+  const serialized = runs.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    processedAt: r.processedAt?.toISOString() ?? null,
+    paidAt: r.paidAt?.toISOString() ?? null,
+  }));
+
   return (
     <div>
-      <TopBar title="Payroll" subtitle="Salary processing and payslips" />
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <Wallet className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium text-lg">Payroll</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Salary processing, payslip generation, and tax calculations are coming soon.
-            </p>
-          </CardContent>
-        </Card>
+      <TopBar
+        title="Payroll"
+        subtitle="Salary runs and payslips"
+        actions={
+          <Link href="/africs/accounting/payroll/new">
+            <Button size="sm" className="gap-2">
+              <Plus className="h-3.5 w-3.5" />
+              New Payroll Run
+            </Button>
+          </Link>
+        }
+      />
+      <div className="p-6 space-y-4">
+        {/* Status filter tabs */}
+        <div className="flex gap-1">
+          {STATUSES.map((s) => (
+            <Link
+              key={s.value}
+              href={s.value ? `/africs/accounting/payroll?status=${s.value}` : "/africs/accounting/payroll"}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                (sp.status ?? "") === s.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
+
+        <PayrollRunList runs={serialized} />
       </div>
     </div>
   );

@@ -79,7 +79,8 @@ Last updated: 2026-03-22
 ### Phase 5: Advanced Features — IN PROGRESS
 - [x] Proforma invoices (type field, separate numbering, accept/convert/expire flow, PDF/preview labels)
 - [ ] Credit notes
-- [ ] Expense tracking
+- [x] Expense tracking
+- [x] Bills & vendor management (accounts payable)
 - [ ] Multi-currency exchange rates
 - [ ] Tax profiles (multiple rates, VAT/GST)
 - [ ] Invoice templates (multiple PDF layouts)
@@ -174,9 +175,51 @@ Last updated: 2026-03-22
 - [x] Branding customization
 - [x] Settings pages
 
-### HR Module — DONE (Phase 1 scope)
+### HR Module — Phase 1 DONE, Phase 2 DONE
 - [x] Dynamic form builder
 - [x] Employee profiles
+- [x] Employee status tracking (active, on_leave with type, suspended, terminated, resigned)
+- [x] Staff ID card and Business card (front + back, HTML preview + PDF)
+- [x] Employee profile PDF export
+- [x] TIN, citizenship, searchable country dropdown
+
+### Timesheets — DONE
+- [x] Prisma models: Timesheet, TimesheetEntry (with relations on User, Tenant, Employee, Project)
+- [x] Server actions: getTimesheets, getTimesheet, getTimesheetByWeek, getTimesheetStats, getTeamTimesheets, createTimesheet, saveTimesheetEntries, submitTimesheet, approveTimesheet, rejectTimesheet, reopenTimesheet, deleteTimesheet
+- [x] Constants: `src/lib/timesheet-constants.ts` — TIMESHEET_CATEGORIES, TIMESHEET_STATUSES, getWeekStart, getWeekDates, formatWeekRange, toISODate
+- [x] Components: TimesheetStatusBadge, TimesheetCategoryBadge, TimesheetStatsCards, TimesheetListTable, TimesheetGrid, TimesheetActions, TimesheetDetailCard, NewTimesheetForm
+- [x] Pages: `/africs/hr/timesheets`, `/africs/hr/timesheets/new`, `/africs/hr/timesheets/[id]`, `/africs/hr/timesheets/[id]/edit`
+- [x] Workflow: draft → submitted → approved/rejected (rejected can be reopened to draft)
+
+### Bills & Vendors (Accounts Payable) — DONE
+- [x] Prisma models: Vendor, Bill, BillPayment, BillSettings
+- [x] Server actions: getVendors, getVendor, createVendor, updateVendor, deactivateVendor, reactivateVendor; getBills, getBill, getBillStats, getBillsForVendor, createBill, updateBill, approveBill, recordBillPayment, deleteBillPayment, voidBill, deleteBill
+- [x] Constants: `src/lib/bill-constants.ts` — PAYMENT_TERMS, BILL_PAYMENT_METHODS, BILL_STATUSES, VENDOR_STATUSES
+- [x] Components: BillStatusBadge, BillStatsCards, BillListTable, BillDetailCard, BillActions, BillForm, BillPaymentDialog, BillPaymentHistory, VendorForm, VendorDetailCard, VendorListTable
+- [x] Pages: `/africs/accounting/vendors`, `/africs/accounting/vendors/new`, `/africs/accounting/vendors/[id]`, `/africs/accounting/vendors/[id]/edit`; `/africs/accounting/bills`, `/africs/accounting/bills/new`, `/africs/accounting/bills/[id]`, `/africs/accounting/bills/[id]/edit`
+- [x] Seed: `prisma/seed-bills.ts` (5 vendors, 9 bills in various statuses)
+
+### Expenses — DONE
+- [x] Prisma models: ExpenseCategory, Expense
+- [x] Server actions: getExpenses, getExpense, getExpenseStats, getExpenseCategories, createExpense, updateExpense, submitExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense
+- [x] Constants: `src/lib/expense-constants.ts` — EXPENSE_CATEGORIES, EXPENSE_STATUSES, ExpenseStatus
+- [x] Components: ExpenseStatusBadge, ExpenseCategoryBadge, ExpenseStatsCards, ExpenseListTable, ExpenseDetailCard, ExpenseActions, ExpenseForm
+- [x] Pages: `/africs/accounting/expenses`, `/africs/accounting/expenses/new`, `/africs/accounting/expenses/[id]`, `/africs/accounting/expenses/[id]/edit`
+- [x] Seed: `prisma/seed-expenses.ts`
+
+### Payroll — DONE
+- [x] Prisma models: PayrollRun, Payslip
+- [x] Server actions: getPayrollRuns, getPayrollRun, getPayslip, getPayslipsForEmployee, getPayrollStats, createPayrollRun, updatePayslip, processPayrollRun, markPayrollPaid, deletePayrollRun
+- [x] Components: PayrollStatusBadge, PayrollRunSummary, PayrollRunActions, PayrollRunList, PayrollRunForm, PayslipTable, PayslipEditDialog, PayslipDetailCard, PayslipHistory, PayslipPdf
+- [x] Pages: `/africs/accounting/payroll`, `/africs/accounting/payroll/new`, `/africs/accounting/payroll/[id]`, `/africs/accounting/payroll/[id]/[payslipId]`
+- [x] API route: `/api/payroll/[runId]/payslip/[payslipId]/pdf`
+- [x] Employee detail "Payslips" tab with payslip history
+
+### Leave Management — DONE
+- [x] Prisma models: LeaveBalance, LeaveRequest
+- [x] Server actions: getLeaveBalances, getAllLeaveBalances, upsertLeaveBalance, bulkAllocateLeaveBalances, getLeaveRequests, createLeaveRequest, reviewLeaveRequest, cancelLeaveRequest, getLeaveDashboardStats, getLeaveCalendarData, syncEmployeeLeaveStatus
+- [x] Components: LeaveStatusBadge, LeaveTypeBadge, LeaveRequestForm, LeaveRequestTable, LeaveReviewDialog, LeaveBalanceTable, LeaveBulkAllocateDialog, LeaveDashboardCards
+- [x] Pages: `/africs/hr/time-off`, `/africs/hr/time-off/requests/new`, `/africs/hr/time-off/balances`
 
 ---
 

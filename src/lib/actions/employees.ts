@@ -75,7 +75,7 @@ export async function getEmployee(id: string) {
 export async function getEmployeesForSelect(tenantId: string) {
   return prisma.employee.findMany({
     where: { tenantId, status: { notIn: ["terminated", "resigned"] } },
-    select: { id: true, firstName: true, lastName: true, jobTitle: true, employeeNumber: true },
+    select: { id: true, firstName: true, lastName: true, jobTitle: true, employeeNumber: true, department: true },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 }
