@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
@@ -29,7 +30,31 @@ export async function getOvertimeSettings(tenantId?: string) {
   };
 }
 
+export async function getOvertimeSettingsHistory() {
+  const owner = await getOwnerBusiness();
+  if (!owner) return [];
+
+  const logs = await prisma.overtimeSettingsLog.findMany({
+    where: { tenantId: owner.id },
+    include: { changedBy: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return logs.map((l) => ({
+    id: l.id,
+    standardRateMultiplier: toNum(l.standardRateMultiplier),
+    weekendRateMultiplier: toNum(l.weekendRateMultiplier),
+    holidayRateMultiplier: toNum(l.holidayRateMultiplier),
+    createdAt: l.createdAt.toISOString(),
+    changedBy: l.changedBy,
+  }));
+}
+
 export async function updateOvertimeSettings(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
   const owner = await getOwnerBusiness();
   if (!owner) return { error: "Not found" };
 
@@ -41,20 +66,22 @@ export async function updateOvertimeSettings(formData: FormData) {
   if (isNaN(weekend) || weekend < 1 || weekend > 10) return { error: "Weekend rate must be between 1 and 10" };
   if (isNaN(holiday) || holiday < 1 || holiday > 10) return { error: "Holiday rate must be between 1 and 10" };
 
-  await prisma.overtimeSettings.upsert({
-    where: { tenantId: owner.id },
-    create: {
-      tenantId: owner.id,
-      standardRateMultiplier: standard,
-      weekendRateMultiplier: weekend,
-      holidayRateMultiplier: holiday,
-    },
-    update: {
-      standardRateMultiplier: standard,
-      weekendRateMultiplier: weekend,
-      holidayRateMultiplier: holiday,
-    },
-  });
+  await prisma.$transaction([
+    prisma.overtimeSettings.upsert({
+      where: { tenantId: owner.id },
+      create: { tenantId: owner.id, standardRateMultiplier: standard, weekendRateMultiplier: weekend, holidayRateMultiplier: holiday },
+      update: { standardRateMultiplier: standard, weekendRateMultiplier: weekend, holidayRateMultiplier: holiday },
+    }),
+    prisma.overtimeSettingsLog.create({
+      data: {
+        tenantId: owner.id,
+        changedById: session.user.id,
+        standardRateMultiplier: standard,
+        weekendRateMultiplier: weekend,
+        holidayRateMultiplier: holiday,
+      },
+    }),
+  ]);
 
   revalidatePath("/africs/settings/hr/overtime");
   return { success: true };

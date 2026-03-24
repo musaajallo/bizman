@@ -21,6 +21,8 @@ function serializeRequest(r: {
   reason: string;
   projectId: string | null;
   status: string;
+  appliedRateMultiplier: unknown;
+  calculatedPay: unknown;
   reviewedById: string | null;
   reviewNote: string | null;
   reviewedAt: Date | null;
@@ -37,6 +39,8 @@ function serializeRequest(r: {
     reason: r.reason,
     projectId: r.projectId,
     status: r.status,
+    appliedRateMultiplier: r.appliedRateMultiplier != null ? toNum(r.appliedRateMultiplier) : null,
+    calculatedPay: r.calculatedPay != null ? toNum(r.calculatedPay) : null,
     reviewedById: r.reviewedById,
     reviewNote: r.reviewNote,
     reviewedAt: r.reviewedAt?.toISOString() ?? null,
@@ -170,38 +174,18 @@ export async function getApprovedOvertimeForPayroll(employeeId: string, month: n
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 1));
 
-  const [requests, settingsRow] = await Promise.all([
-    prisma.overtimeRequest.findMany({
-      where: { tenantId: owner.id, employeeId, status: "approved", date: { gte: start, lt: end } },
-      include: { employee: { select: { basicSalary: true, currency: true } } },
-    }),
-    prisma.overtimeSettings.findUnique({ where: { tenantId: owner.id } }),
-  ]);
+  // Use snapshotted calculatedPay — rates at time of approval are permanently locked in
+  const agg = await prisma.overtimeRequest.aggregate({
+    where: { tenantId: owner.id, employeeId, status: "approved", date: { gte: start, lt: end } },
+    _sum: { hours: true, calculatedPay: true },
+    _avg: { appliedRateMultiplier: true },
+  });
 
-  if (requests.length === 0) return { totalHours: 0, totalPay: 0, averageRate: 0 };
+  const totalHours = toNum(agg._sum.hours);
+  const totalPay = parseFloat(toNum(agg._sum.calculatedPay).toFixed(2));
+  const averageRate = parseFloat(toNum(agg._avg.appliedRateMultiplier).toFixed(2));
 
-  const rates: OvertimeRates = settingsRow
-    ? {
-        standardRateMultiplier: toNum(settingsRow.standardRateMultiplier),
-        weekendRateMultiplier: toNum(settingsRow.weekendRateMultiplier),
-        holidayRateMultiplier: toNum(settingsRow.holidayRateMultiplier),
-      }
-    : { standardRateMultiplier: 1.5, weekendRateMultiplier: 2.0, holidayRateMultiplier: 2.5 };
-
-  let totalHours = 0;
-  let totalPay = 0;
-
-  for (const r of requests) {
-    const hours = toNum(r.hours);
-    const basic = toNum(r.employee.basicSalary);
-    const { pay } = calculateOvertimePay(basic, hours, r.overtimeType as OvertimeTypeValue, rates);
-    totalHours += hours;
-    totalPay += pay;
-  }
-
-  const averageRate = totalHours > 0 ? parseFloat((totalPay / totalHours).toFixed(2)) : 0;
-
-  return { totalHours, totalPay: parseFloat(totalPay.toFixed(2)), averageRate };
+  return { totalHours, totalPay, averageRate };
 }
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
@@ -296,6 +280,27 @@ export async function reviewOvertimeRequest(
     return { error: "A rejection reason is required" };
   }
 
+  // Fetch current rate settings to snapshot at approval time
+  let appliedRateMultiplier: number | null = null;
+  let calculatedPay: number | null = null;
+
+  if (decision === "approved") {
+    const settingsRow = await prisma.overtimeSettings.findUnique({ where: { tenantId: owner.id } });
+    const rates: OvertimeRates = settingsRow
+      ? {
+          standardRateMultiplier: toNum(settingsRow.standardRateMultiplier),
+          weekendRateMultiplier: toNum(settingsRow.weekendRateMultiplier),
+          holidayRateMultiplier: toNum(settingsRow.holidayRateMultiplier),
+        }
+      : { standardRateMultiplier: 1.5, weekendRateMultiplier: 2.0, holidayRateMultiplier: 2.5 };
+
+    const basic = toNum(request.employee.basicSalary);
+    const hours = toNum(request.hours);
+    const { rate, pay } = calculateOvertimePay(basic, hours, request.overtimeType as OvertimeTypeValue, rates);
+    appliedRateMultiplier = rate;
+    calculatedPay = pay;
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.overtimeRequest.update({
       where: { id },
@@ -303,6 +308,10 @@ export async function reviewOvertimeRequest(
         status: decision,
         reviewNote: reviewNote || null,
         reviewedAt: new Date(),
+        ...(decision === "approved" && {
+          appliedRateMultiplier,
+          calculatedPay,
+        }),
       },
     });
 
