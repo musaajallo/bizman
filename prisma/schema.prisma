@@ -177,6 +177,9 @@ model Tenant {
 
   // Timesheets
   timesheets Timesheet[]
+
+  // Overtime
+  overtimeRequests OvertimeRequest[]
 }
 
 model TenantUser {
@@ -380,6 +383,7 @@ model Project {
   activities   ProjectActivity[]
   invoices         Invoice[]
   timesheetEntries TimesheetEntry[]
+  overtimeRequests OvertimeRequest[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status])
@@ -1021,6 +1025,8 @@ model Employee {
   payslips      Payslip[]
   expenses      Expense[]
   timesheets    Timesheet[]
+  overtimeRequests  OvertimeRequest[]
+  reviewedOvertime  OvertimeRequest[] @relation("OvertimeReviewer")
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -1139,6 +1145,9 @@ model Payslip {
   transportAllowance Decimal @db.Decimal(12, 2) @default(0)
   otherAllowance     Decimal @db.Decimal(12, 2) @default(0)
   otherAllowanceLabel String?
+  overtimeHours      Decimal @db.Decimal(5, 2)  @default(0)
+  overtimeRate       Decimal @db.Decimal(12, 2) @default(0)
+  overtimePay        Decimal @db.Decimal(12, 2) @default(0)
   grossPay           Decimal @db.Decimal(12, 2) @default(0)
 
   // Deductions
@@ -1371,4 +1380,38 @@ model TimesheetEntry {
 
   @@index([timesheetId])
   @@index([timesheetId, date])
+}
+
+// --- Overtime ---
+
+model OvertimeRequest {
+  id           String    @id @default(cuid())
+  tenantId     String
+  employeeId   String
+
+  date         DateTime  @db.Date
+  hours        Decimal   @db.Decimal(5, 2)
+  // standard, weekend, holiday
+  overtimeType String    @default("standard")
+  reason       String    @db.Text
+
+  projectId    String?
+
+  // pending, approved, rejected
+  status       String    @default("pending")
+  reviewedById String?   // Employee.id of the manager who reviewed
+  reviewNote   String?   @db.Text
+  reviewedAt   DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer   Employee? @relation("OvertimeReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([employeeId, status])
+  @@index([tenantId, date])
 }

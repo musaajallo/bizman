@@ -215,6 +215,18 @@ Last updated: 2026-03-22
 - [x] API route: `/api/payroll/[runId]/payslip/[payslipId]/pdf`
 - [x] Employee detail "Payslips" tab with payslip history
 
+### Overtime — DONE
+- [x] Prisma models: OvertimeRequest (with Employee reviewer relation, Project link)
+- [x] Payslip model: new fields `overtimeHours`, `overtimeRate`, `overtimePay`
+- [x] Constants: `src/lib/overtime-constants.ts` — OVERTIME_TYPES (standard/weekend/holiday with rate multipliers), OVERTIME_STATUSES, calculateOvertimePay
+- [x] Server actions: getOvertimeRequests, getOvertimeRequestById, getOvertimeDashboardStats, getApprovedOvertimeForPayroll, createOvertimeRequest, reviewOvertimeRequest, cancelOvertimeRequest
+- [x] Timesheet sync: approved overtime auto-creates TimesheetEntry with category "overtime"
+- [x] Payroll integration: createPayrollRun includes approved overtime; updatePayslip accepts overtime fields
+- [x] In-app notifications for manager (on submit) and employee (on review decision)
+- [x] Components: OvertimeStatusBadge, OvertimeTypeBadge, OvertimeDashboardCards, OvertimeRequestTable, OvertimeReviewDialog, OvertimeRequestForm
+- [x] Pages: `/africs/hr/overtime`, `/africs/hr/overtime/new`
+- [x] Workflow: pending → approved (syncs to timesheet) / rejected
+
 ### Leave Management — DONE
 - [x] Prisma models: LeaveBalance, LeaveRequest
 - [x] Server actions: getLeaveBalances, getAllLeaveBalances, upsertLeaveBalance, bulkAllocateLeaveBalances, getLeaveRequests, createLeaveRequest, reviewLeaveRequest, cancelLeaveRequest, getLeaveDashboardStats, getLeaveCalendarData, syncEmployeeLeaveStatus

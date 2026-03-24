@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
+import { getApprovedOvertimeForPayroll } from "./overtime";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -71,6 +72,9 @@ export async function getPayrollRun(id: string) {
       housingAllowance: toNum(p.housingAllowance),
       transportAllowance: toNum(p.transportAllowance),
       otherAllowance: toNum(p.otherAllowance),
+      overtimeHours: toNum(p.overtimeHours),
+      overtimeRate: toNum(p.overtimeRate),
+      overtimePay: toNum(p.overtimePay),
       grossPay: toNum(p.grossPay),
       pensionRate: toNum(p.pensionRate),
       pensionContribution: toNum(p.pensionContribution),
@@ -104,6 +108,9 @@ export async function getPayslip(id: string) {
     housingAllowance: toNum(p.housingAllowance),
     transportAllowance: toNum(p.transportAllowance),
     otherAllowance: toNum(p.otherAllowance),
+    overtimeHours: toNum(p.overtimeHours),
+    overtimeRate: toNum(p.overtimeRate),
+    overtimePay: toNum(p.overtimePay),
     grossPay: toNum(p.grossPay),
     pensionRate: toNum(p.pensionRate),
     pensionContribution: toNum(p.pensionContribution),
@@ -145,6 +152,9 @@ export async function getPayslipsForEmployee(employeeId: string) {
     housingAllowance: toNum(p.housingAllowance),
     transportAllowance: toNum(p.transportAllowance),
     otherAllowance: toNum(p.otherAllowance),
+    overtimeHours: toNum(p.overtimeHours),
+    overtimeRate: toNum(p.overtimeRate),
+    overtimePay: toNum(p.overtimePay),
   }));
 }
 
@@ -209,13 +219,26 @@ export async function createPayrollRun(formData: FormData) {
 
   if (employees.length === 0) return { error: "No active employees found" };
 
+  // Fetch approved overtime for each employee this period
+  const overtimeByEmployee = new Map<string, { totalHours: number; totalPay: number; averageRate: number }>();
+  await Promise.all(
+    employees.map(async (e) => {
+      const ot = await getApprovedOvertimeForPayroll(e.id, periodMonth, periodYear);
+      if (ot.totalHours > 0) overtimeByEmployee.set(e.id, ot);
+    })
+  );
+
   // Build payslip data for each employee
   const payslipData = employees.map((e) => {
     const basic = toNum(e.basicSalary);
     const housing = toNum(e.housingAllowance);
     const transport = toNum(e.transportAllowance);
     const other = toNum(e.otherAllowance);
-    const gross = basic + housing + transport + other;
+    const ot = overtimeByEmployee.get(e.id);
+    const overtimeHours = ot?.totalHours ?? 0;
+    const overtimeRate = ot?.averageRate ?? 0;
+    const overtimePay = ot?.totalPay ?? 0;
+    const gross = basic + housing + transport + other + overtimePay;
     const pensionRate = toNum(e.pensionContribution);
     const pension = parseFloat(((pensionRate / 100) * basic).toFixed(2));
     const totalDed = pension;
@@ -233,6 +256,9 @@ export async function createPayrollRun(formData: FormData) {
       transportAllowance: transport,
       otherAllowance: other,
       otherAllowanceLabel: e.otherAllowanceLabel,
+      overtimeHours,
+      overtimeRate,
+      overtimePay,
       grossPay: gross,
       pensionRate,
       pensionContribution: pension,
@@ -287,6 +313,9 @@ export async function updatePayslip(
     transportAllowance?: number;
     otherAllowance?: number;
     otherAllowanceLabel?: string | null;
+    overtimeHours?: number;
+    overtimeRate?: number;
+    overtimePay?: number;
     pensionRate?: number;
     medicalAidDeduction?: number;
     payeTax?: number;
@@ -309,7 +338,10 @@ export async function updatePayslip(
   const housing = data.housingAllowance ?? toNum(payslip.housingAllowance);
   const transport = data.transportAllowance ?? toNum(payslip.transportAllowance);
   const other = data.otherAllowance ?? toNum(payslip.otherAllowance);
-  const gross = basic + housing + transport + other;
+  const overtimeHours = data.overtimeHours ?? toNum(payslip.overtimeHours);
+  const overtimeRate = data.overtimeRate ?? toNum(payslip.overtimeRate);
+  const overtimePay = data.overtimePay ?? toNum(payslip.overtimePay);
+  const gross = basic + housing + transport + other + overtimePay;
 
   const pensionRate = data.pensionRate ?? toNum(payslip.pensionRate);
   const pension = parseFloat(((pensionRate / 100) * basic).toFixed(2));
@@ -328,6 +360,9 @@ export async function updatePayslip(
         transportAllowance: transport,
         otherAllowance: other,
         otherAllowanceLabel: data.otherAllowanceLabel !== undefined ? data.otherAllowanceLabel : payslip.otherAllowanceLabel,
+        overtimeHours,
+        overtimeRate,
+        overtimePay,
         grossPay: gross,
         pensionRate,
         pensionContribution: pension,

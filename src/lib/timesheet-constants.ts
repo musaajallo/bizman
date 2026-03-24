@@ -5,6 +5,7 @@ export const TIMESHEET_CATEGORIES = [
   { value: "admin",    label: "Admin" },
   { value: "travel",   label: "Travel" },
   { value: "sick",     label: "Sick" },
+  { value: "overtime", label: "Overtime" },
   { value: "other",    label: "Other" },
 ] as const;
 
