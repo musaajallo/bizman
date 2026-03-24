@@ -30,6 +30,7 @@ import {
   Music,
   Server,
   AlarmClock,
+  Umbrella,
 } from "lucide-react";
 
 const SETTINGS_NAV = [
@@ -60,6 +61,7 @@ const SETTINGS_NAV = [
     group: "HR",
     prefix: "/africs/settings/hr",
     items: [
+      { label: "Leave Policy", href: "/africs/settings/hr/leave", icon: Umbrella },
       { label: "Overtime", href: "/africs/settings/hr/overtime", icon: AlarmClock },
     ],
   },
