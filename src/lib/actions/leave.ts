@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
+import { getAnnualLeaveEntitlement } from "@/lib/leave-settings-defaults";
+import { getLeaveSettings } from "./leave-settings";
 
 export type { LeaveTypeValue } from "@/lib/leave-types";
 
@@ -58,11 +60,17 @@ export async function upsertLeaveBalance(
 export async function bulkAllocateLeaveBalances(
   year: number,
   leaveType: string,
-  allocated: number,
+  allocated?: number, // optional override; if omitted for "annual", uses tier logic
   employeeIds?: string[] // undefined = all active employees
 ) {
   const owner = await getOwnerBusiness();
   if (!owner) return { error: "Not found" };
+
+  // For annual leave without a flat override, load tier settings
+  let settings: Awaited<ReturnType<typeof getLeaveSettings>> | null = null;
+  if (leaveType === "annual" && allocated === undefined) {
+    settings = await getLeaveSettings(owner.id);
+  }
 
   const employees = await prisma.employee.findMany({
     where: {
@@ -70,17 +78,32 @@ export async function bulkAllocateLeaveBalances(
       status: { in: ["active", "on_leave", "suspended"] },
       ...(employeeIds?.length ? { id: { in: employeeIds } } : {}),
     },
-    select: { id: true },
+    select: { id: true, startDate: true },
   });
 
+  const referenceDate = new Date(year, 0, 1); // Jan 1 of the allocation year
+
   await Promise.all(
-    employees.map((e) =>
-      prisma.leaveBalance.upsert({
+    employees.map((e) => {
+      let days: number;
+      if (allocated !== undefined) {
+        days = allocated;
+      } else if (settings) {
+        days = getAnnualLeaveEntitlement(
+          e.startDate,
+          settings.annualLeaveTiers,
+          settings.annualLeaveDefaultDays,
+          referenceDate
+        );
+      } else {
+        days = 21; // fallback
+      }
+      return prisma.leaveBalance.upsert({
         where: { employeeId_year_leaveType: { employeeId: e.id, year, leaveType } },
-        create: { tenantId: owner.id, employeeId: e.id, year, leaveType, allocated, used: 0 },
-        update: { allocated },
-      })
-    )
+        create: { tenantId: owner.id, employeeId: e.id, year, leaveType, allocated: days, used: 0 },
+        update: { allocated: days },
+      });
+    })
   );
 
   revalidatePath("/africs/hr/time-off");

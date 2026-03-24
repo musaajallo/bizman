@@ -260,7 +260,8 @@ export function InvoicePdfTemplate({ invoice, invoiceType, ownerName, ownerColor
   const accentColor = ownerColor || "#4F6EF7";
   const type = invoiceType || invoice.type || "standard";
   const isProforma = type === "proforma";
-  const documentLabel = isProforma ? "PROFORMA INVOICE" : "INVOICE";
+  const isCreditNote = type === "credit_note";
+  const documentLabel = isProforma ? "PROFORMA INVOICE" : isCreditNote ? "CREDIT NOTE" : "INVOICE";
 
   return (
     <Document>
@@ -269,6 +270,7 @@ export function InvoicePdfTemplate({ invoice, invoiceType, ownerName, ownerColor
         {invoice.status === "paid" && <Text style={styles.paidStamp}>PAID</Text>}
         {invoice.status === "void" && <Text style={styles.voidStamp}>VOID</Text>}
         {isProforma && invoice.status !== "void" && <Text style={styles.voidStamp}>PROFORMA</Text>}
+        {isCreditNote && invoice.status !== "void" && <Text style={styles.voidStamp}>CREDIT NOTE</Text>}
 
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: accentColor }]}>

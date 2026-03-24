@@ -39,6 +39,7 @@ export default async function LeaveSettingsPage() {
                     <th className="text-center px-3 py-2 font-medium text-muted-foreground">+Annual</th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">Sick/mo</th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">Annual</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Service tiers</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -57,6 +58,13 @@ export default async function LeaveSettingsPage() {
                       <td className="px-3 py-2 text-center">{entry.paternityCanCombineWithAnnual ? "✓" : "—"}</td>
                       <td className="px-3 py-2 text-right font-mono">{entry.sickLeaveAccrualPerMonth}d</td>
                       <td className="px-3 py-2 text-right font-mono">{entry.annualLeaveDefaultDays}d</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {entry.annualLeaveTiers.length === 0
+                          ? <span className="text-muted-foreground/50">—</span>
+                          : entry.annualLeaveTiers
+                              .map((t) => `${t.minYears}yr→${t.days}d`)
+                              .join(", ")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

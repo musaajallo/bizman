@@ -10,6 +10,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   accepted: { label: "Accepted", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   converted: { label: "Converted", className: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
   expired: { label: "Expired", className: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20" },
+  applied: { label: "Applied", className: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
 };
 
 export function InvoiceStatusBadge({ status }: { status: string }) {

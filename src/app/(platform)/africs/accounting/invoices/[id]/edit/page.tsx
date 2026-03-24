@@ -1,6 +1,7 @@
 import { TopBar } from "@/components/layout/top-bar";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { getInvoiceSettings } from "@/lib/actions/invoice-settings";
+import { getTaxProfiles } from "@/lib/actions/tax-profiles";
 import { getInvoice } from "@/lib/actions/invoices";
 import { getProjects } from "@/lib/actions/projects";
 import { notFound, redirect } from "next/navigation";
@@ -16,8 +17,9 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   if (!invoice) notFound();
   if (invoice.status !== "draft") redirect(`/africs/accounting/invoices/${id}`);
 
-  const [settings, projects, clients] = await Promise.all([
+  const [settings, taxProfiles, projects, clients] = await Promise.all([
     getInvoiceSettings(owner.id),
+    getTaxProfiles(owner.id),
     getProjects(owner.id),
     prisma.tenant.findMany({
       where: { isOwnerBusiness: false },
@@ -43,6 +45,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           }))}
           invoice={invoice as unknown as Parameters<typeof InvoiceForm>[0]["invoice"]}
           defaultTaxRate={settings.defaultTaxRate}
+          taxProfiles={taxProfiles}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}
           defaultDueDays={settings.defaultDueDays}

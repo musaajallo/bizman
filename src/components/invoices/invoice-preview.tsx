@@ -52,7 +52,8 @@ function formatDate(d: Date | string) {
 
 export function InvoicePreview({ invoice, invoiceType, ownerName, accentColor, logoUrl }: Props) {
   const isProforma = invoiceType === "proforma";
-  const documentLabel = isProforma ? "Proforma Invoice" : "Invoice";
+  const isCreditNote = invoiceType === "credit_note";
+  const documentLabel = isCreditNote ? "Credit Note" : isProforma ? "Proforma Invoice" : "Invoice";
   const color = accentColor || "#4F6EF7";
 
   return (

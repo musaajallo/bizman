@@ -30,7 +30,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     <div>
       <TopBar
         title={invoice.invoiceNumber}
-        subtitle={`${invoice.type === "proforma" ? "Proforma invoice" : "Invoice"} for ${invoice.clientName}`}
+        subtitle={`${invoice.type === "proforma" ? "Proforma invoice" : invoice.type === "credit_note" ? "Credit note" : "Invoice"} for ${invoice.clientName}`}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/africs/accounting/invoices">
@@ -86,6 +86,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             <InvoiceDetailData invoice={invoice as unknown as Parameters<typeof InvoiceDetailData>[0]["invoice"]} />
             <InvoiceDetailSidebar
               invoiceId={invoice.id}
+              invoiceType={invoice.type}
               status={invoice.status}
               amountDue={invoice.amountDue}
               currency={invoice.currency}
@@ -94,6 +95,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               isRecurring={invoice.isRecurring}
               recurringInterval={invoice.recurringInterval}
               nextRecurringDate={invoice.nextRecurringDate}
+              creditNotes={(invoice as unknown as { creditNotes: { id: string; invoiceNumber: string; status: string; total: number; currency: string }[] }).creditNotes}
             />
           </div>
 

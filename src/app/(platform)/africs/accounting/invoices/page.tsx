@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/layout/top-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, FileSpreadsheet } from "lucide-react";
+import { Plus, Settings, FileSpreadsheet, FileMinus, BarChart2 } from "lucide-react";
 import Link from "next/link";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { getInvoices } from "@/lib/actions/invoices";
@@ -28,6 +28,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
     { label: "All", value: undefined },
     { label: "Invoices", value: "standard" },
     { label: "Proformas", value: "proforma" },
+    { label: "Credit Notes", value: "credit_note" },
   ];
 
   const statusTabs = [
@@ -38,6 +39,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
     { label: "Paid", value: "paid" },
     { label: "Accepted", value: "accepted" },
     { label: "Converted", value: "converted" },
+    { label: "Applied", value: "applied" },
   ];
 
   // Build URL preserving the other filter
@@ -58,6 +60,12 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
         subtitle="Create and manage client invoices"
         actions={
           <div className="flex items-center gap-2">
+            <Link href="/africs/accounting/invoices/dashboard">
+              <Button size="sm" variant="outline" className="gap-2">
+                <BarChart2 className="h-3.5 w-3.5" />
+                Dashboard
+              </Button>
+            </Link>
             <Link href="/africs/accounting/invoices/settings">
               <Button size="sm" variant="outline" className="gap-2">
                 <Settings className="h-3.5 w-3.5" />
@@ -68,6 +76,12 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
               <Button size="sm" variant="outline" className="gap-2">
                 <Plus className="h-3.5 w-3.5" />
                 New Proforma
+              </Button>
+            </Link>
+            <Link href="/africs/accounting/credit-notes/new">
+              <Button size="sm" variant="outline" className="gap-2 text-rose-400 border-rose-500/30 hover:text-rose-300">
+                <FileMinus className="h-3.5 w-3.5" />
+                New Credit Note
               </Button>
             </Link>
             <Link href="/africs/accounting/invoices/new">

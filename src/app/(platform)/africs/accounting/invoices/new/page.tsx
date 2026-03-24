@@ -1,6 +1,7 @@
 import { TopBar } from "@/components/layout/top-bar";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { getInvoiceSettings } from "@/lib/actions/invoice-settings";
+import { getTaxProfiles } from "@/lib/actions/tax-profiles";
 import { getProjects } from "@/lib/actions/projects";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -10,8 +11,9 @@ export default async function NewInvoicePage() {
   const owner = await getOwnerBusiness();
   if (!owner) notFound();
 
-  const [settings, projects, clients] = await Promise.all([
+  const [settings, taxProfiles, projects, clients] = await Promise.all([
     getInvoiceSettings(owner.id),
+    getTaxProfiles(owner.id),
     getProjects(owner.id),
     prisma.tenant.findMany({
       where: { isOwnerBusiness: false },
@@ -36,6 +38,7 @@ export default async function NewInvoicePage() {
             clientTenantId: p.clientTenantId,
           }))}
           defaultTaxRate={settings.defaultTaxRate}
+          taxProfiles={taxProfiles}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}
           defaultDueDays={settings.defaultDueDays}

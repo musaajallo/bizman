@@ -76,6 +76,12 @@ export async function updateInvoiceSettings(tenantId: string, formData: FormData
   if (formData.has("proformaNextNumber")) {
     data.proformaNextNumber = parseInt(formData.get("proformaNextNumber") as string) || 1;
   }
+  if (formData.has("creditNotePrefix")) {
+    data.creditNotePrefix = (formData.get("creditNotePrefix") as string) || "CN";
+  }
+  if (formData.has("creditNoteNextNumber")) {
+    data.creditNoteNextNumber = parseInt(formData.get("creditNoteNextNumber") as string) || 1;
+  }
   if (formData.has("accentColor")) {
     data.accentColor = (formData.get("accentColor") as string) || null;
   }

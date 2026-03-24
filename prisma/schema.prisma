@@ -149,6 +149,7 @@ model Tenant {
   invoiceSettings   InvoiceSettings?
   invoices          Invoice[]
   clientInvoices    Invoice[]         @relation("InvoiceClient")
+  taxProfiles       TaxProfile[]
 
   // Communications
   smtpSettings      SmtpSettings?
@@ -643,12 +644,29 @@ model InvoiceSettings {
   defaultTaxRate    Decimal? @db.Decimal(5, 2)
   proformaPrefix    String   @default("PRO")
   proformaNextNumber Int     @default(1)
+  creditNotePrefix     String @default("CN")
+  creditNoteNextNumber Int    @default(1)
 
   // Invoice branding (overrides tenant primaryColor)
   accentColor String?
   logoUrl     String?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TaxProfile {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String   // "VAT (15%)", "GST (10%)"
+  rate        Decimal  @db.Decimal(5, 2)
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 // --- Communications ---
@@ -723,6 +741,9 @@ model Invoice {
   // Proforma conversion tracking
   convertedFromId   String?   @unique
 
+  // Credit note tracking
+  creditNoteForId   String?
+
   createdById     String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -734,15 +755,19 @@ model Invoice {
   recurringChildren Invoice[]    @relation("RecurringInvoices")
   convertedFrom Invoice?         @relation("ProformaConversion", fields: [convertedFromId], references: [id], onDelete: SetNull)
   convertedTo   Invoice?         @relation("ProformaConversion")
+  creditNoteFor Invoice?         @relation("CreditNoteFor", fields: [creditNoteForId], references: [id], onDelete: SetNull)
+  creditNotes   Invoice[]        @relation("CreditNoteFor")
   createdBy     User             @relation(fields: [createdById], references: [id])
   lineItems     InvoiceLineItem[]
   payments      InvoicePayment[]
+  appliedAsCredits InvoicePayment[] @relation("CreditNotePayment")
   activities    InvoiceActivity[]
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, type, status])
   @@index([projectId])
   @@index([clientTenantId])
+  @@index([creditNoteForId])
   @@index([dueDate])
   @@index([shareToken])
 }
@@ -776,10 +801,14 @@ model InvoicePayment {
   recordedById String
   createdAt    DateTime @default(now())
 
-  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  recordedBy User    @relation(fields: [recordedById], references: [id])
+  creditNoteId String?
+
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedBy User     @relation(fields: [recordedById], references: [id])
+  creditNote Invoice? @relation("CreditNotePayment", fields: [creditNoteId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
+  @@index([creditNoteId])
 }
 
 model InvoiceActivity {
@@ -1122,7 +1151,8 @@ model LeaveSettings {
   sickLeaveAccrualPerMonth Decimal @db.Decimal(4, 2) @default(1.5)
 
   // Annual leave
-  annualLeaveDefaultDays Int @default(21)
+  annualLeaveDefaultDays Int  @default(21)
+  annualLeaveTiers       Json @default("[]") // AnnualLeaveTier[] — sorted by minYears asc
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
@@ -1138,6 +1168,7 @@ model LeaveSettingsLog {
   paternityCanCombineWithAnnual Boolean
   sickLeaveAccrualPerMonth      Decimal @db.Decimal(4, 2)
   annualLeaveDefaultDays        Int
+  annualLeaveTiers              Json    @default("[]")
 
   createdAt DateTime @default(now())
 

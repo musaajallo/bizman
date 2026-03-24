@@ -61,16 +61,25 @@ interface InvoiceData {
   lineItems: (LineItemData & { id: string })[];
 }
 
+interface TaxProfile {
+  id: string;
+  name: string;
+  rate: number;
+}
+
 interface Props {
   tenantId: string;
   clients: Client[];
   projects: Project[];
   invoice?: InvoiceData | null;
-  invoiceType?: "standard" | "proforma";
+  invoiceType?: "standard" | "proforma" | "credit_note";
+  creditNoteForId?: string | null;
+  creditNoteForNumber?: string | null;
   defaultTaxRate?: number | null;
   defaultNotes?: string | null;
   defaultTerms?: string | null;
   defaultDueDays?: number;
+  taxProfiles?: TaxProfile[];
 }
 
 const CURRENCIES = ["USD", "EUR", "GBP", "KES", "NGN", "GHS", "ZAR", "CAD", "AUD", "JPY"];
@@ -80,7 +89,7 @@ function dateToInput(d: Date | string) {
   return date.toISOString().split("T")[0];
 }
 
-export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType = "standard", defaultTaxRate, defaultNotes, defaultTerms, defaultDueDays = 30 }: Props) {
+export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType = "standard", creditNoteForId, creditNoteForNumber, defaultTaxRate, defaultNotes, defaultTerms, defaultDueDays = 30, taxProfiles = [] }: Props) {
   const router = useRouter();
   const isEditing = !!invoice;
 
@@ -170,6 +179,7 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
     const formData = new FormData();
     formData.set("tenantId", tenantId);
     formData.set("type", invoiceType);
+    if (creditNoteForId) formData.set("creditNoteForId", creditNoteForId);
     formData.set("clientName", clientName);
     formData.set("clientEmail", clientEmail);
     formData.set("clientPhone", clientPhone);
@@ -241,7 +251,8 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
             });
           }
         }
-        router.push(`/africs/accounting/invoices/${result.invoiceId}`);
+        const base = invoiceType === "credit_note" ? "/africs/accounting/credit-notes" : "/africs/accounting/invoices";
+        router.push(`${base}/${result.invoiceId}`);
       }
     }
 
@@ -253,6 +264,11 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
       {error && (
         <div className="p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
           {error}
+        </div>
+      )}
+      {invoiceType === "credit_note" && creditNoteForNumber && (
+        <div className="p-3 text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+          Credit note for invoice <span className="font-mono font-medium">{creditNoteForNumber}</span>
         </div>
       )}
 
@@ -398,6 +414,31 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
               <CardTitle className="text-sm">Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {taxProfiles.length > 0 && (
+                <div>
+                  <Label className="text-xs">Tax Profile</Label>
+                  <Select
+                    value={taxProfiles.find((p) => String(p.rate) === taxRate)?.id ?? "__manual"}
+                    onValueChange={(val) => {
+                      if (val === "__manual") return;
+                      const profile = taxProfiles.find((p) => p.id === val);
+                      if (profile) setTaxRate(String(profile.rate));
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Select a tax profile" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__manual">— Enter manually —</SelectItem>
+                      {taxProfiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label className="text-xs">Tax Rate (%)</Label>
                 <Input

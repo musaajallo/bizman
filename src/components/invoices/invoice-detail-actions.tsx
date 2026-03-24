@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Pencil, Copy, Trash2, Loader2, Send, Ban, Bell, ExternalLink, Download, Check, ArrowRightLeft, Clock, ScrollText, ChevronDown, Link2 } from "lucide-react";
+import { Pencil, Copy, Trash2, Loader2, Send, Ban, Bell, ExternalLink, Download, Check, ArrowRightLeft, Clock, ScrollText, ChevronDown, Link2, FileMinus } from "lucide-react";
 import { deleteInvoice, duplicateInvoice, voidInvoice, acceptProforma, expireProforma, convertProformaToInvoice } from "@/lib/actions/invoices";
 import { EmailComposeDialog } from "./email-compose-dialog";
 import {
@@ -79,6 +79,12 @@ export function InvoiceDetailActions({ invoiceId, invoiceType = "standard", stat
   };
 
   const isProforma = invoiceType === "proforma";
+  const isStandard = invoiceType === "standard";
+  const isCreditNote = invoiceType === "credit_note";
+
+  const handleIssueCreditNote = () => {
+    router.push(`/africs/accounting/credit-notes/new?invoiceId=${invoiceId}&invoiceNumber=${invoiceNumber}`);
+  };
 
   const handleAccept = async () => {
     if (!confirm("Accept this proforma? This indicates the client has agreed to the quote.")) return;
@@ -98,14 +104,15 @@ export function InvoiceDetailActions({ invoiceId, invoiceType = "standard", stat
     act(() => expireProforma(invoiceId));
   };
 
-  const canSend = status === "draft";
+  const canSend = status === "draft" && !isCreditNote;
   const canEdit = status === "draft";
   const canDelete = status === "draft";
-  const canVoid = status !== "void" && status !== "paid" && status !== "converted" && status !== "expired";
-  const canRemind = !isProforma && (status === "sent" || status === "viewed" || status === "overdue");
+  const canVoid = status !== "void" && status !== "paid" && status !== "converted" && status !== "expired" && status !== "applied";
+  const canRemind = !isProforma && isStandard && (status === "sent" || status === "viewed" || status === "overdue");
   const canAccept = isProforma && (status === "sent" || status === "viewed");
   const canConvert = isProforma && (status === "sent" || status === "viewed" || status === "accepted");
   const canExpire = isProforma && !["expired", "converted", "void"].includes(status);
+  const canIssueCreditNote = isStandard && (status === "sent" || status === "viewed" || status === "paid" || status === "overdue");
 
   return (
     <>
@@ -126,6 +133,12 @@ export function InvoiceDetailActions({ invoiceId, invoiceType = "standard", stat
           <Button size="sm" className="gap-2" onClick={handleConvert} disabled={acting}>
             <ArrowRightLeft className="h-3.5 w-3.5" />
             Convert to Invoice
+          </Button>
+        )}
+        {canIssueCreditNote && (
+          <Button size="sm" variant="outline" className="gap-2 text-rose-400 border-rose-500/30 hover:text-rose-300" onClick={handleIssueCreditNote} disabled={acting}>
+            <FileMinus className="h-3.5 w-3.5" />
+            Issue Credit Note
           </Button>
         )}
         {canRemind && (

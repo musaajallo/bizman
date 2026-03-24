@@ -27,6 +27,8 @@ interface Settings {
   defaultTaxRate: number | null;
   proformaPrefix: string;
   proformaNextNumber: number;
+  creditNotePrefix: string;
+  creditNoteNextNumber: number;
   accentColor: string | null;
   logoUrl: string | null;
 }
@@ -92,6 +94,26 @@ export function InvoiceSettingsForm({ tenantId, settings }: Props) {
             <div>
               <Label className="text-xs">Next Number</Label>
               <Input value={settings.proformaNextNumber} readOnly className="h-9 bg-muted" />
+              <p className="text-[10px] text-muted-foreground mt-1">Auto-incremented, read-only</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Credit Note Numbering */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-sm">Credit Note Numbering</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Credit Note Prefix</Label>
+              <Input name="creditNotePrefix" defaultValue={settings.creditNotePrefix} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Next Number</Label>
+              <Input value={settings.creditNoteNextNumber} readOnly className="h-9 bg-muted" />
               <p className="text-[10px] text-muted-foreground mt-1">Auto-incremented, read-only</p>
             </div>
           </div>

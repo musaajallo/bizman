@@ -56,6 +56,8 @@ import {
   Fuel,
   FileStack,
   BarChart3,
+  TrendingUp,
+  LineChart,
   IdCard,
   Landmark,
   Network,
@@ -83,6 +85,7 @@ import {
   LayoutGrid,
   Boxes,
   ScrollText,
+  FileMinus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/lib/stores/preferences-store";
@@ -146,21 +149,34 @@ function getNavItems(workspace: string): NavItem[] {
       },
       { label: "Projects", href: "/africs/projects", icon: FolderKanban, description: "Track and manage all projects" },
       {
-        label: "Accounting & Finance",
+        label: "Accounting",
         icon: Calculator,
-        description: "Financial operations and reporting",
+        description: "Transactional finance — invoices, bills, payroll, expenses",
         children: [
-          { label: "Dashboard", href: "/africs/accounting/dashboard", icon: PieChart, description: "Financial overview and key metrics" },
-          { label: "Finance", href: "/africs/accounting/finance", icon: Banknote, description: "General ledger and financial records" },
-          { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
-          { label: "Expenses", href: "/africs/accounting/expenses", icon: Receipt, description: "Track and approve business expenses" },
+          { label: "Dashboard", href: "/africs/accounting/dashboard", icon: PieChart, description: "Accounting overview and key metrics" },
           { label: "Invoices", href: "/africs/accounting/invoices", icon: FileSpreadsheet, description: "Create and manage client invoices" },
+          { label: "Credit Notes", href: "/africs/accounting/credit-notes", icon: FileMinus, description: "Issue credits against invoices" },
           { label: "Payments", href: "/africs/accounting/payments", icon: CreditCard, description: "Record and track received payments" },
           { label: "Receipts", href: "/africs/accounting/receipts", icon: ScrollText, description: "Payment receipts for paid invoices" },
           { label: "Bills", href: "/africs/accounting/bills", icon: FileInput, description: "Bills you owe to vendors" },
           { label: "Vendors", href: "/africs/accounting/vendors", icon: TruckIcon, description: "Manage your suppliers and vendors" },
-          { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and procurement" },
+          { label: "Expenses", href: "/africs/accounting/expenses", icon: Receipt, description: "Track and approve business expenses" },
+          { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
+          { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and requisitions" },
           { label: "Assets", href: "/africs/assets", icon: Boxes, description: "Track and manage company assets and equipment" },
+        ],
+      },
+      {
+        label: "Finance",
+        icon: TrendingUp,
+        description: "Analysis, forecasting, and financial planning",
+        children: [
+          { label: "Dashboard", href: "/africs/finance/dashboard", icon: PieChart, description: "Financial health — P&L, cash position, KPIs" },
+          { label: "P&L", href: "/africs/finance/pl", icon: LineChart, description: "Income statement for any period" },
+          { label: "Balance Sheet", href: "/africs/finance/balance-sheet", icon: Scale, description: "Assets, liabilities, and equity snapshot" },
+          { label: "Cash Flow", href: "/africs/finance/cash-flow", icon: Banknote, description: "Cash inflows and outflows over time" },
+          { label: "Budgets", href: "/africs/finance/budgets", icon: BarChart3, description: "Budget planning and actuals vs. budget" },
+          { label: "Forecasting", href: "/africs/finance/forecasting", icon: TrendingUp, description: "Revenue and expense projections" },
         ],
       },
       {

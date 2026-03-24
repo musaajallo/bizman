@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { sendEmail } from "@/lib/email";
 
 // --- Queries ---
 
@@ -13,8 +14,12 @@ export async function getInvoices(tenantId: string, filters?: {
   clientTenantId?: string;
 }) {
   const where: Record<string, unknown> = { tenantId };
+  if (filters?.type) {
+    where.type = filters.type;
+  } else {
+    where.type = { not: "credit_note" };
+  }
   if (filters?.status) where.status = filters.status;
-  if (filters?.type) where.type = filters.type;
   if (filters?.projectId) where.projectId = filters.projectId;
   if (filters?.clientTenantId) where.clientTenantId = filters.clientTenantId;
 
@@ -86,6 +91,8 @@ export async function getInvoice(invoiceId: string) {
         include: { actor: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
       },
+      creditNoteFor: { select: { id: true, invoiceNumber: true } },
+      creditNotes: { select: { id: true, invoiceNumber: true, status: true, total: true, currency: true, createdAt: true } },
     },
   });
 
@@ -116,6 +123,8 @@ export async function getInvoice(invoiceId: string) {
       amount: Number(p.amount),
     })),
     activities: invoice.activities,
+    creditNoteFor: invoice.creditNoteFor,
+    creditNotes: invoice.creditNotes.map((cn) => ({ ...cn, total: Number(cn.total) })),
   };
 }
 
@@ -165,17 +174,27 @@ export async function getInvoicesForClient(clientTenantId: string) {
 // --- Auto-number ---
 
 async function generateInvoiceNumber(tenantId: string, type: string = "standard"): Promise<string> {
-  const settings = await prisma.invoiceSettings.findUnique({
-    where: { tenantId },
-  });
+  const settings = await prisma.invoiceSettings.findUnique({ where: { tenantId } });
 
-  const isProforma = type === "proforma";
-  const prefix = isProforma ? (settings?.proformaPrefix || "PRO") : (settings?.prefix || "INV");
-  const nextNumber = isProforma ? (settings?.proformaNextNumber || 1) : (settings?.nextNumber || 1);
+  let prefix: string;
+  let nextNumber: number;
+  let updateField: Record<string, unknown>;
+
+  if (type === "proforma") {
+    prefix = settings?.proformaPrefix || "PRO";
+    nextNumber = settings?.proformaNextNumber || 1;
+    updateField = { proformaNextNumber: nextNumber + 1 };
+  } else if (type === "credit_note") {
+    prefix = settings?.creditNotePrefix || "CN";
+    nextNumber = settings?.creditNoteNextNumber || 1;
+    updateField = { creditNoteNextNumber: nextNumber + 1 };
+  } else {
+    prefix = settings?.prefix || "INV";
+    nextNumber = settings?.nextNumber || 1;
+    updateField = { nextNumber: nextNumber + 1 };
+  }
+
   const invoiceNumber = `${prefix}-${String(nextNumber).padStart(4, "0")}`;
-
-  // Increment next number
-  const updateField = isProforma ? { proformaNextNumber: nextNumber + 1 } : { nextNumber: nextNumber + 1 };
   await prisma.invoiceSettings.upsert({
     where: { tenantId },
     update: updateField,
@@ -229,6 +248,7 @@ export async function createInvoice(formData: FormData) {
       notes: (formData.get("notes") as string) || settings?.defaultNotes || null,
       terms: (formData.get("terms") as string) || settings?.defaultTerms || null,
       referenceNumber: (formData.get("referenceNumber") as string) || null,
+      creditNoteForId: (formData.get("creditNoteForId") as string) || null,
       createdById: session.user.id,
     },
   });
@@ -667,11 +687,28 @@ export async function sendReminder(invoiceId: string) {
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    select: { status: true },
+    include: { tenant: { select: { name: true } } },
   });
   if (!invoice) return { error: "Invoice not found" };
   if (invoice.status !== "sent" && invoice.status !== "viewed" && invoice.status !== "overdue") {
     return { error: "Can only send reminders for sent, viewed, or overdue invoices" };
+  }
+
+  if (invoice.clientEmail) {
+    const viewUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/view/invoice/${invoice.shareToken}`;
+    await sendEmail({
+      to: invoice.clientEmail,
+      subject: `Payment reminder: ${invoice.invoiceNumber} — ${invoice.tenant.name}`,
+      html: buildReminderEmail({
+        ownerName: invoice.tenant.name,
+        clientName: invoice.clientName,
+        invoiceNumber: invoice.invoiceNumber,
+        amountDue: Number(invoice.amountDue),
+        currency: invoice.currency,
+        dueDate: invoice.dueDate,
+        viewUrl,
+      }),
+    });
   }
 
   await prisma.invoiceActivity.create({
@@ -680,6 +717,112 @@ export async function sendReminder(invoiceId: string) {
 
   revalidatePath("/africs/accounting/invoices");
   return { success: true };
+}
+
+// Called by cron — sends reminders for all overdue invoices not reminded in last 7 days
+export async function sendAllOverdueReminders() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const overdue = await prisma.invoice.findMany({
+    where: {
+      status: "overdue",
+      clientEmail: { not: null },
+      type: "standard",
+    },
+    include: {
+      tenant: { select: { name: true } },
+      activities: {
+        where: { action: "reminder_sent", createdAt: { gte: sevenDaysAgo } },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+
+  let sent = 0;
+  for (const invoice of overdue) {
+    if (invoice.activities.length > 0) continue; // already reminded recently
+
+    const viewUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/view/invoice/${invoice.shareToken}`;
+    const result = await sendEmail({
+      to: invoice.clientEmail!,
+      subject: `Overdue payment: ${invoice.invoiceNumber} — ${invoice.tenant.name}`,
+      html: buildReminderEmail({
+        ownerName: invoice.tenant.name,
+        clientName: invoice.clientName,
+        invoiceNumber: invoice.invoiceNumber,
+        amountDue: Number(invoice.amountDue),
+        currency: invoice.currency,
+        dueDate: invoice.dueDate,
+        viewUrl,
+        isOverdue: true,
+      }),
+    });
+
+    if (result.success) {
+      await prisma.invoiceActivity.create({
+        data: { invoiceId: invoice.id, action: "reminder_sent" },
+      });
+      sent++;
+    }
+  }
+
+  return { sent, total: overdue.length };
+}
+
+function buildReminderEmail(opts: {
+  ownerName: string;
+  clientName: string;
+  invoiceNumber: string;
+  amountDue: number;
+  currency: string;
+  dueDate: Date;
+  viewUrl: string;
+  isOverdue?: boolean;
+}): string {
+  const { ownerName, clientName, invoiceNumber, amountDue, currency, dueDate, viewUrl, isOverdue } = opts;
+  const amount = new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amountDue);
+  const due = new Date(dueDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const subject = isOverdue ? "overdue" : "due";
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
+        <tr><td style="background:#4F6EF7;padding:24px 32px;">
+          <p style="margin:0;color:#ffffff;font-size:18px;font-weight:600;">${ownerName}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#18181b;">Hi ${clientName},</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#52525b;line-height:1.6;">
+            This is a reminder that invoice <strong>${invoiceNumber}</strong> for
+            <strong>${amount}</strong> is ${subject} on <strong>${due}</strong>.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:6px;width:100%;margin-bottom:24px;">
+            <tr><td style="padding:20px 24px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;">Amount ${subject}</p>
+              <p style="margin:0;font-size:28px;font-weight:700;color:${isOverdue ? "#ef4444" : "#18181b"};">${amount}</p>
+              <p style="margin:4px 0 0;font-size:12px;color:#71717a;">Due date: ${due}</p>
+            </td></tr>
+          </table>
+          <a href="${viewUrl}" style="display:inline-block;background:#4F6EF7;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:500;">
+            View Invoice &amp; Pay
+          </a>
+          <p style="margin:24px 0 0;font-size:12px;color:#a1a1aa;">
+            If you have already made payment, please disregard this message. Contact ${ownerName} if you have any questions.
+          </p>
+        </td></tr>
+        <tr><td style="border-top:1px solid #e4e4e7;padding:16px 32px;">
+          <p style="margin:0;font-size:11px;color:#a1a1aa;">Sent by ${ownerName} via AfricsCore</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }
 
 // --- Payments ---
@@ -1029,6 +1172,33 @@ export async function processRecurringInvoices(tenantId: string) {
   return { success: true, generated };
 }
 
+// Called by cron route — no session required, auth is via CRON_SECRET at the HTTP layer
+export async function checkAllTenantsOverdueInvoices() {
+  const now = new Date();
+  const result = await prisma.invoice.updateMany({
+    where: { status: { in: ["sent", "viewed"] }, dueDate: { lt: now } },
+    data: { status: "overdue" },
+  });
+  return { marked: result.count };
+}
+
+// Called by cron route — no session required, auth is via CRON_SECRET at the HTTP layer
+export async function processAllTenantsRecurringInvoices() {
+  const now = new Date();
+  const dueTemplates = await prisma.invoice.findMany({
+    where: { isRecurring: true, nextRecurringDate: { lte: now } },
+    select: { id: true, tenantId: true },
+  });
+
+  let generated = 0;
+  for (const template of dueTemplates) {
+    const result = await generateNextRecurringInvoice(template.id);
+    if (result.success) generated++;
+  }
+
+  return { generated, processed: dueTemplates.length };
+}
+
 export async function getRecurringInvoices(tenantId: string) {
   const invoices = await prisma.invoice.findMany({
     where: { tenantId, isRecurring: true },
@@ -1196,7 +1366,6 @@ export async function checkOverdueInvoices(tenantId: string) {
     )
   );
 
-  revalidatePath("/africs/accounting/invoices");
   return { success: true, count: overdueInvoices.length };
 }
 
@@ -1341,4 +1510,110 @@ export async function convertProformaToInvoice(proformaId: string) {
 
   revalidatePath("/africs/accounting/invoices");
   return { success: true, invoiceId: newInvoice.id };
+}
+
+// --- Credit Notes ---
+
+export async function getCreditNotes(tenantId: string, filters?: { status?: string }) {
+  const where: Record<string, unknown> = { tenantId, type: "credit_note" };
+  if (filters?.status) where.status = filters.status;
+
+  const invoices = await prisma.invoice.findMany({
+    where,
+    include: {
+      project: { select: { id: true, name: true, slug: true } },
+      clientTenant: { select: { id: true, name: true, slug: true } },
+      creditNoteFor: { select: { id: true, invoiceNumber: true } },
+      _count: { select: { lineItems: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return invoices.map((inv) => ({
+    ...inv,
+    subtotal: Number(inv.subtotal),
+    taxRate: inv.taxRate ? Number(inv.taxRate) : null,
+    taxAmount: Number(inv.taxAmount),
+    discountAmount: Number(inv.discountAmount),
+    total: Number(inv.total),
+    amountPaid: Number(inv.amountPaid),
+    amountDue: Number(inv.amountDue),
+  }));
+}
+
+export async function applyCreditNote(creditNoteId: string, targetInvoiceId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const creditNote = await prisma.invoice.findUnique({
+    where: { id: creditNoteId },
+    select: { type: true, status: true, total: true, invoiceNumber: true },
+  });
+  if (!creditNote) return { error: "Credit note not found" };
+  if (creditNote.type !== "credit_note") return { error: "Not a credit note" };
+  if (creditNote.status === "applied" || creditNote.status === "void") {
+    return { error: "Credit note has already been applied or voided" };
+  }
+
+  const targetInvoice = await prisma.invoice.findUnique({
+    where: { id: targetInvoiceId },
+    select: { status: true, total: true, amountPaid: true },
+  });
+  if (!targetInvoice) return { error: "Invoice not found" };
+  if (["void", "paid", "draft"].includes(targetInvoice.status)) {
+    return { error: "Cannot apply credit to a draft, paid, or void invoice" };
+  }
+
+  const creditAmount = Number(creditNote.total);
+  const newPaid = Math.round((Number(targetInvoice.amountPaid) + creditAmount) * 100) / 100;
+  const newDue = Math.max(0, Math.round((Number(targetInvoice.total) - newPaid) * 100) / 100);
+  const fullyPaid = newDue <= 0;
+
+  await prisma.$transaction([
+    prisma.invoicePayment.create({
+      data: {
+        invoiceId: targetInvoiceId,
+        creditNoteId,
+        amount: creditAmount,
+        method: "credit_note",
+        reference: creditNote.invoiceNumber,
+        notes: `Credit note applied: ${creditNote.invoiceNumber}`,
+        date: new Date(),
+        recordedById: session.user.id,
+      },
+    }),
+    prisma.invoice.update({
+      where: { id: targetInvoiceId },
+      data: {
+        amountPaid: newPaid,
+        amountDue: newDue,
+        status: fullyPaid ? "paid" : targetInvoice.status,
+        paidDate: fullyPaid ? new Date() : undefined,
+      },
+    }),
+    prisma.invoice.update({
+      where: { id: creditNoteId },
+      data: { status: "applied" },
+    }),
+    prisma.invoiceActivity.create({
+      data: {
+        invoiceId: targetInvoiceId,
+        actorId: session.user.id,
+        action: "credit_applied",
+        details: { creditNoteId, creditNoteNumber: creditNote.invoiceNumber, amount: creditAmount },
+      },
+    }),
+    prisma.invoiceActivity.create({
+      data: {
+        invoiceId: creditNoteId,
+        actorId: session.user.id,
+        action: "applied",
+        details: { targetInvoiceId },
+      },
+    }),
+  ]);
+
+  revalidatePath("/africs/accounting/invoices");
+  revalidatePath("/africs/accounting/credit-notes");
+  return { success: true };
 }

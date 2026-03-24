@@ -17,11 +17,17 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   const isPaid = invoice.status === "paid";
   const isVoid = invoice.status === "void";
   const isProforma = invoice.type === "proforma";
+  const isCreditNote = invoice.type === "credit_note";
 
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="max-w-4xl mx-auto p-6 md:p-12">
-        {/* Status Banner */}
+        {/* Status Banners */}
+        {isCreditNote && !isVoid && (
+          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-center">
+            <p className="text-rose-400 font-medium">This is a credit note. It represents a reduction or refund against a previous invoice.</p>
+          </div>
+        )}
         {isProforma && !isVoid && (
           <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-center">
             <p className="text-amber-400 font-medium">This is a proforma invoice (estimate). It is not a request for payment.</p>
@@ -52,8 +58,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           logoUrl={settings.logoUrl ?? invoice.tenant.logoUrl}
         />
 
-        {/* Bank Details (if not paid, not proforma) */}
-        {!isPaid && !isVoid && !isProforma && invoice.amountDue > 0 && (
+        {/* Payment info — standard invoices only */}
+        {!isPaid && !isVoid && !isProforma && !isCreditNote && invoice.amountDue > 0 && (
           <div className="mt-8 p-6 bg-background border rounded-lg">
             <h3 className="font-medium mb-3">Payment Information</h3>
             <p className="text-sm text-muted-foreground mb-4">

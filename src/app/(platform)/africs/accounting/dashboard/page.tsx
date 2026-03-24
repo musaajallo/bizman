@@ -15,7 +15,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
-import { getInvoiceDashboard, getRecurringInvoices, checkOverdueInvoices } from "@/lib/actions/invoices";
+import { getInvoiceDashboard, getRecurringInvoices } from "@/lib/actions/invoices";
 import { notFound } from "next/navigation";
 import { RevenueChart } from "@/components/invoices/revenue-chart";
 import { AgingReport } from "@/components/invoices/aging-report";
@@ -42,9 +42,6 @@ export default async function AccountingDashboardPage() {
     getInvoiceDashboard(owner.id),
     getRecurringInvoices(owner.id),
   ]);
-
-  // Check overdue on dashboard visit
-  await checkOverdueInvoices(owner.id);
 
   return (
     <div>
