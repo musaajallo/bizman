@@ -163,7 +163,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Expenses", href: "/africs/accounting/expenses", icon: Receipt, description: "Track and approve business expenses" },
           { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
           { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and requisitions" },
-          { label: "Assets", href: "/africs/assets", icon: Boxes, description: "Track and manage company assets and equipment" },
+          { label: "Assets", href: "/africs/accounting/assets", icon: Boxes, description: "Track and manage company assets and equipment" },
         ],
       },
       {
@@ -191,6 +191,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Appraisals", href: "/africs/hr/appraisals", icon: Award, description: "Performance reviews and goals" },
           { label: "Timesheets", href: "/africs/hr/timesheets", icon: Timer, description: "Daily attendance and hours logged" },
           { label: "Overtime", href: "/africs/hr/overtime", icon: AlarmClock, description: "Overtime tracking and approvals" },
+          { label: "Talent Pool", href: "/africs/hr/talent-pool", icon: UsersRound, description: "Candidate database and expressions of interest" },
           { label: "Referrals", href: "/africs/hr/referrals", icon: UserRoundPlus, description: "Employee referral programs" },
         ],
       },

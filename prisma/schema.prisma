@@ -210,6 +210,16 @@ model Tenant {
   // Assets
   assets        Asset[]
   assetSettings AssetSettings?
+
+  // Talent & Recruitment
+  talentPool      TalentPoolEntry[]
+  jobPostings     JobPosting[]
+  applications    Application[]
+  referrals       Referral[]
+
+  // Appraisals
+  appraisalCycles AppraisalCycle[]
+  appraisals      Appraisal[]
 }
 
 model TenantUser {
@@ -1086,6 +1096,8 @@ model Employee {
   overtimeRequests  OvertimeRequest[]
   reviewedOvertime  OvertimeRequest[] @relation("OvertimeReviewer")
   assetAssignments  AssetAssignment[]
+  referrals         Referral[]
+  appraisals        Appraisal[]
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -1776,4 +1788,195 @@ model AssetMaintenance {
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@index([assetId])
+}
+
+// ─── Talent Pool ──────────────────────────────────────────────────────────────
+
+model TalentPoolEntry {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  email           String
+  phone           String?
+  linkedInUrl     String?
+  desiredRole     String?
+  department      String?
+  skills          String[] // array of tags
+  experienceLevel String?  // junior, mid, senior, lead, executive
+  resumeUrl       String?  @db.Text
+  notes           String?  @db.Text
+  status          String   @default("new") // new, reviewed, shortlisted, archived
+  source          String   @default("self_applied") // self_applied, referral, sourced
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, department])
+}
+
+// ─── Recruitment ──────────────────────────────────────────────────────────────
+
+model JobPosting {
+  id             String    @id @default(cuid())
+  tenantId       String
+  title          String
+  department     String?
+  employmentType String?   // full_time, part_time, contract, internship
+  location       String?
+  isRemote       Boolean   @default(false)
+  salaryMin      Decimal?  @db.Decimal(12, 2)
+  salaryMax      Decimal?  @db.Decimal(12, 2)
+  salaryCurrency String    @default("GMD")
+  description    String?   @db.Text
+  requirements   String?   @db.Text
+  status         String    @default("draft") // draft, open, closed, filled
+  publishedAt    DateTime?
+  closingDate    DateTime?
+  filledAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  applications Application[]
+  referrals    Referral[]
+
+  @@index([tenantId, status])
+}
+
+model Application {
+  id                String   @id @default(cuid())
+  tenantId          String
+  jobPostingId      String
+  talentPoolEntryId String?
+  candidateName     String
+  candidateEmail    String?
+  candidatePhone    String?
+  resumeUrl         String?  @db.Text
+  coverLetter       String?  @db.Text
+  stage             String   @default("applied") // applied, screening, interview, offer, hired, rejected
+  rating            Int?     // 1-5
+  notes             String?  @db.Text
+  rejectionReason   String?
+  hiredEmployeeId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobPosting      JobPosting       @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  talentPoolEntry TalentPoolEntry? @relation(fields: [talentPoolEntryId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, stage])
+  @@index([jobPostingId, stage])
+  @@index([talentPoolEntryId])
+}
+
+// ─── Referrals ────────────────────────────────────────────────────────────────
+
+model Referral {
+  id                String    @id @default(cuid())
+  tenantId          String
+  referrerId        String    // Employee who made the referral
+  jobPostingId      String?
+  positionTitle     String
+  department        String?
+  candidateName     String
+  candidateEmail    String?
+  candidatePhone    String?
+  candidateLinkedIn String?
+  resumeUrl         String?   @db.Text
+  status            String    @default("submitted") // submitted, reviewed, interviewing, hired, rejected
+  reviewNote        String?   @db.Text
+  reviewedAt        DateTime?
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referrer   Employee    @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  jobPosting JobPosting? @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([referrerId])
+  @@index([jobPostingId])
+}
+
+// ─── Appraisals ───────────────────────────────────────────────────────────────
+
+model AppraisalCycle {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("draft") // draft, active, closed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appraisals Appraisal[]
+
+  @@index([tenantId, status])
+}
+
+model Appraisal {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  cycleId            String
+  employeeId         String
+  managerId          String?
+  status             String    @default("pending") // pending, self_review, manager_review, completed
+  selfRating         Int?      // 1-5
+  selfComments       String?   @db.Text
+  selfSubmittedAt    DateTime?
+  managerRating      Int?      // 1-5
+  managerComments    String?   @db.Text
+  managerSubmittedAt DateTime?
+  finalRating        Int?      // 1-5
+  finalComments      String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycle    AppraisalCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  ratings  AppraisalRating[]
+  goals    AppraisalGoal[]
+
+  @@unique([cycleId, employeeId])
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@index([cycleId, status])
+}
+
+model AppraisalRating {
+  id           String  @id @default(cuid())
+  appraisalId  String
+  criterion    String
+  selfScore    Int?    // 1-5
+  managerScore Int?    // 1-5
+  comments     String? @db.Text
+
+  appraisal Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@index([appraisalId])
+}
+
+model AppraisalGoal {
+  id          String    @id @default(cuid())
+  appraisalId String
+  title       String
+  description String?   @db.Text
+  targetDate  DateTime?
+  status      String    @default("not_started") // not_started, in_progress, completed
+  progress    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  appraisal Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@index([appraisalId])
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface TopBarProps {
   title: string;
@@ -21,6 +22,11 @@ export function TopBar({ title, subtitle, actions }: TopBarProps) {
       </div>
       <div className="flex items-center gap-2">
         {actions}
+        <Link href="/" target="_blank">
+          <Button variant="ghost" size="icon" className="relative h-8 w-8">
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </Link>
         <Button variant="ghost" size="icon" className="relative h-8 w-8">
           <Search className="h-4 w-4" />
         </Button>

@@ -195,17 +195,22 @@ Last updated: 2026-03-24
 - [x] Payslip PDF
 - [x] Overtime integration
 
-### Recruitment — STUB 🪧
-- [ ] Prisma models: JobPosting, Applicant, ApplicationStage
-- [ ] Job postings (internal + external)
-- [ ] Applicant pipeline (applied → screened → interviewed → offered → hired / rejected)
+### Recruitment — DONE ✅
+- [x] Prisma models: JobPosting, Application (with TalentPoolEntry link)
+- [x] Job postings (draft → open → closed / filled)
+- [x] Applicant pipeline (applied → screening → interview → offer → hired / rejected)
+- [x] Kanban board per posting with drag-to-stage
+- [x] Application detail page (rate, notes, reject, move stage)
 - [ ] Link hired applicant to Employee record
 
-### Appraisals — STUB 🪧
-- [ ] Prisma models: AppraisalCycle, AppraisalForm, AppraisalResponse
-- [ ] Configurable appraisal cycles (annual, quarterly)
-- [ ] Self-assessment + manager assessment
-- [ ] Rating aggregation and reporting
+### Appraisals — DONE ✅
+- [x] Prisma models: AppraisalCycle, Appraisal, AppraisalRating, AppraisalGoal
+- [x] Configurable appraisal cycles (draft → active → closed)
+- [x] Activating a cycle auto-creates appraisals for all active employees
+- [x] Self-assessment + manager review workflow
+- [x] Per-criterion ratings (6 default criteria)
+- [x] Goal tracking per appraisal (with progress)
+- [x] Avg rating stats on dashboard
 - [ ] Link to promotion/disciplinary flows
 
 ### Benefits Management — NOT STARTED 🔲
@@ -233,9 +238,20 @@ Last updated: 2026-03-24
 - [ ] In-app request flow (employee requests, manager approves and writes)
 - [ ] Email delivery of final recommendation letter
 
-### Referrals — STUB 🪧
-- [ ] Prisma models: EmployeeReferral
-- [ ] Employee refers candidate → tracks hiring outcome → reward tracking
+### Referrals — DONE ✅
+- [x] Prisma models: Referral (linked to Employee referrer + optional JobPosting)
+- [x] Submit referral form (employee, candidate info, optional job link)
+- [x] Status workflow: submitted → reviewed → interviewing → hired / rejected
+- [x] Leaderboard: top referrers by hired count
+- [ ] Reward tracking
+
+### Talent Pool — DONE ✅
+- [x] Prisma models: TalentPoolEntry (with Application link)
+- [x] Public self-apply form at `/talent-pool` (unauthenticated)
+- [x] Internal candidate list with status tabs (new → reviewed → shortlisted → archived)
+- [x] Candidate detail with application history
+- [x] Status management + delete
+- [x] Link candidates directly to job postings as applications
 
 ### Onboarding — NOT STARTED 🔲
 - [ ] Dedicated module for probationary staff

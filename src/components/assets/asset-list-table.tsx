@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { AssetStatusBadge } from "./asset-status-badge";
-import { buttonVariants } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { ASSET_CATEGORIES } from "@/lib/asset-constants";
-import { cn } from "@/lib/utils";
 
 interface Asset {
   id: string;
@@ -74,7 +72,7 @@ export function AssetListTable({ assets }: { assets: Asset[] }) {
                   <AssetStatusBadge status={a.status} />
                 </td>
                 <td className="px-3 py-2.5">
-                  <Link href={`/africs/accounting/assets/${a.id}`} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-7 w-7")}>
+                  <Link href={`/africs/accounting/assets/${a.id}`} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
                 </td>
