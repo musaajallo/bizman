@@ -196,6 +196,47 @@ Last updated: 2026-03-24
 - [x] Staff ID card + Business card (PDF)
 - [x] Employee profile PDF export
 
+### Time & Attendance — NOT STARTED 🔲
+> Hardware-agnostic clock-in/out system. Supports ZKTeco device integration, third-party scanners via webhook, and an independent QR code companion app. Feeds into Timesheets, Overtime, and Payroll.
+
+#### Phase 1: Core Engine
+- [ ] Prisma models: AttendanceDevice, AttendanceRecord, AttendanceLog, Shift, ShiftAssignment, EmployeeQRCode
+- [ ] Shift definitions (start/end time, break duration, grace period, applicable days)
+- [ ] Shift assignment per employee or department
+- [ ] Raw attendance record ingestion (clock-in / clock-out, source, device)
+- [ ] Daily log processing: derive present/absent/late/early-departure/overtime from raw records
+- [ ] Manual record entry and correction (admin/HR override)
+- [ ] Dashboard: today's attendance summary, who's in/out, late arrivals, absences
+
+#### Phase 2: QR Code (Independent Mode)
+- [ ] QR code generation per employee (unique, rotatable, with optional expiry)
+- [ ] QR codes printed on staff ID cards or accessible in employee self-service
+- [ ] Companion web app / PWA at `/scan` (kiosk mode, no auth required at device level)
+- [ ] Scan UI: camera feed → decode QR → POST to `/api/attendance/qr` → show employee name + time
+- [ ] Device-level token auth so only registered kiosks can submit scans
+- [ ] Offline queue: buffer scans when offline, sync on reconnect
+
+#### Phase 3: ZKTeco Integration
+- [ ] ZKTeco PUSH (ADMS) receiver endpoint: `/api/attendance/zkteco`
+- [ ] Handle ZKTeco handshake (device registration, heartbeat, command queue)
+- [ ] Parse attendance push payload (employee ID, timestamp, verification type: finger/face/card)
+- [ ] Device management UI: register devices, view last heartbeat, force sync
+- [ ] Employee enrollment mapping: link ZKTeco user ID to Employee record
+- [ ] Support pulling historical logs from device on first sync
+
+#### Phase 4: Third-Party & Generic Integration
+- [ ] Generic webhook endpoint: `/api/attendance/webhook` with HMAC auth
+- [ ] Documented payload spec for third-party fingerprint/QR scanners to POST to
+- [ ] FaceID support: WebAuthn-based clock-in from mobile browser (no extra hardware)
+- [ ] API key management: per-device keys issued from admin UI
+
+#### Phase 5: Reporting & Payroll Integration
+- [ ] Monthly attendance report per employee (days present, absent, late, hours worked)
+- [ ] Auto-generate timesheets from attendance logs (pending employee/HR confirmation)
+- [ ] Flag discrepancies between attendance log and submitted timesheets
+- [ ] Late/absent threshold alerts (notify manager after N occurrences)
+- [ ] Export attendance data for payroll run
+
 ### Timesheets — DONE
 - [x] Prisma models: Timesheet, TimesheetEntry
 - [x] Full workflow: draft → submitted → approved / rejected → reopened
