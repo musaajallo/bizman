@@ -45,6 +45,8 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           }))}
           invoice={invoice as unknown as Parameters<typeof InvoiceForm>[0]["invoice"]}
           defaultTaxRate={settings.defaultTaxRate}
+          defaultDiscountPercent={settings.defaultDiscountPercent}
+          defaultRushFeePercent={settings.defaultRushFeePercent}
           taxProfiles={taxProfiles}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}

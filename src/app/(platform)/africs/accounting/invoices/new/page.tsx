@@ -38,6 +38,8 @@ export default async function NewInvoicePage() {
             clientTenantId: p.clientTenantId,
           }))}
           defaultTaxRate={settings.defaultTaxRate}
+          defaultDiscountPercent={settings.defaultDiscountPercent}
+          defaultRushFeePercent={settings.defaultRushFeePercent}
           taxProfiles={taxProfiles}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}

@@ -37,6 +37,8 @@ export default async function NewProformaPage() {
           }))}
           invoiceType="proforma"
           defaultTaxRate={settings.defaultTaxRate}
+          defaultDiscountPercent={settings.defaultDiscountPercent}
+          defaultRushFeePercent={settings.defaultRushFeePercent}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}
           defaultDueDays={settings.defaultDueDays}

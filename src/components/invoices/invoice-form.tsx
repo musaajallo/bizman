@@ -50,7 +50,8 @@ interface InvoiceData {
   dueDate: Date | string;
   currency: string;
   taxRate: number | null;
-  discountAmount: number;
+  discountPercent: number | null;
+  rushFeePercent: number | null;
   subtotal: number;
   taxAmount: number;
   total: number;
@@ -76,6 +77,8 @@ interface Props {
   creditNoteForId?: string | null;
   creditNoteForNumber?: string | null;
   defaultTaxRate?: number | null;
+  defaultDiscountPercent?: number | null;
+  defaultRushFeePercent?: number | null;
   defaultNotes?: string | null;
   defaultTerms?: string | null;
   defaultDueDays?: number;
@@ -89,7 +92,7 @@ function dateToInput(d: Date | string) {
   return date.toISOString().split("T")[0];
 }
 
-export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType = "standard", creditNoteForId, creditNoteForNumber, defaultTaxRate, defaultNotes, defaultTerms, defaultDueDays = 30, taxProfiles = [] }: Props) {
+export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType = "standard", creditNoteForId, creditNoteForNumber, defaultTaxRate, defaultDiscountPercent, defaultRushFeePercent, defaultNotes, defaultTerms, defaultDueDays = 30, taxProfiles = [] }: Props) {
   const router = useRouter();
   const isEditing = !!invoice;
 
@@ -110,7 +113,8 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
   );
   const [currency, setCurrency] = useState(invoice?.currency || "USD");
   const [taxRate, setTaxRate] = useState(String(invoice?.taxRate ?? defaultTaxRate ?? ""));
-  const [discountAmount, setDiscountAmount] = useState(String(invoice?.discountAmount || ""));
+  const [discountPercent, setDiscountPercent] = useState(String(invoice?.discountPercent ?? defaultDiscountPercent ?? ""));
+  const [rushFeePercent, setRushFeePercent] = useState(String(invoice?.rushFeePercent ?? defaultRushFeePercent ?? ""));
   const [notes, setNotes] = useState(invoice?.notes || defaultNotes || "");
   const [terms, setTerms] = useState(invoice?.terms || defaultTerms || "");
 
@@ -161,9 +165,12 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
   // Calculate totals
   const subtotal = lineItems.reduce((sum, li) => sum + li.amount, 0);
   const taxRateNum = parseFloat(taxRate) || 0;
-  const taxAmount = Math.round(subtotal * (taxRateNum / 100) * 100) / 100;
-  const discountNum = parseFloat(discountAmount) || 0;
-  const total = Math.round((subtotal + taxAmount - discountNum) * 100) / 100;
+  const discountPct = parseFloat(discountPercent) || 0;
+  const rushFeePct = parseFloat(rushFeePercent) || 0;
+  const discountAmount = Math.round(subtotal * (discountPct / 100) * 100) / 100;
+  const rushFee = Math.round(subtotal * (rushFeePct / 100) * 100) / 100;
+  const taxAmount = Math.round((subtotal + rushFee - discountAmount) * (taxRateNum / 100) * 100) / 100;
+  const total = Math.round((subtotal + rushFee - discountAmount + taxAmount) * 100) / 100;
   const amountPaid = invoice?.amountPaid || 0;
   const amountDue = Math.round((total - amountPaid) * 100) / 100;
 
@@ -191,7 +198,8 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
     formData.set("dueDate", dueDate);
     formData.set("currency", currency);
     formData.set("taxRate", taxRate);
-    formData.set("discountAmount", discountAmount);
+    formData.set("discountPercent", discountPercent);
+    formData.set("rushFeePercent", rushFeePercent);
     formData.set("notes", notes);
     formData.set("terms", terms);
 
@@ -451,17 +459,32 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
                   placeholder="0"
                 />
               </div>
-              <div>
-                <Label className="text-xs">Discount</Label>
-                <Input
-                  type="number"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  className="h-9"
-                  min="0"
-                  step="0.01"
-                  placeholder="0"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Discount (%)</Label>
+                  <Input
+                    type="number"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    className="h-9"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Rush Fee (%)</Label>
+                  <Input
+                    type="number"
+                    value={rushFeePercent}
+                    onChange={(e) => setRushFeePercent(e.target.value)}
+                    className="h-9"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
               <div className="pt-2">
@@ -469,7 +492,10 @@ export function InvoiceForm({ tenantId, clients, projects, invoice, invoiceType 
                   subtotal={subtotal}
                   taxRate={taxRateNum || null}
                   taxAmount={taxAmount}
-                  discountAmount={discountNum}
+                  discountPercent={discountPct || null}
+                  discountAmount={discountAmount}
+                  rushFeePercent={rushFeePct || null}
+                  rushFee={rushFee}
                   total={total}
                   amountPaid={amountPaid}
                   amountDue={amountDue}

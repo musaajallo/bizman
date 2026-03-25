@@ -65,6 +65,8 @@ export default async function NewCreditNotePage({
           creditNoteForId={params.invoiceId || null}
           creditNoteForNumber={linkedInvoiceNumber}
           defaultTaxRate={settings.defaultTaxRate}
+          defaultDiscountPercent={settings.defaultDiscountPercent}
+          defaultRushFeePercent={settings.defaultRushFeePercent}
           defaultNotes={settings.defaultNotes}
           defaultTerms={settings.defaultTerms}
           defaultDueDays={settings.defaultDueDays}

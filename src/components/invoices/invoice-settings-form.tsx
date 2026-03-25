@@ -25,6 +25,8 @@ interface Settings {
   bankIban: string | null;
   taxLabel: string | null;
   defaultTaxRate: number | null;
+  defaultDiscountPercent: number | null;
+  defaultRushFeePercent: number | null;
   proformaPrefix: string;
   proformaNextNumber: number;
   creditNotePrefix: string;
@@ -134,6 +136,28 @@ export function InvoiceSettingsForm({ tenantId, settings }: Props) {
             <div>
               <Label className="text-xs">Default Tax Rate (%)</Label>
               <Input name="defaultTaxRate" type="number" defaultValue={settings.defaultTaxRate ?? ""} className="h-9" min="0" step="0.01" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Discount & Rush Fee */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-sm">Discount & Rush Fee</CardTitle>
+          <CardDescription className="text-xs">Default percentages applied to new invoices. Can be overridden per invoice.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Default Discount (%)</Label>
+              <Input name="defaultDiscountPercent" type="number" defaultValue={settings.defaultDiscountPercent ?? ""} className="h-9" min="0" max="100" step="0.01" placeholder="e.g. 5" />
+              <p className="text-[10px] text-muted-foreground mt-1">Applied as a % of the invoice subtotal.</p>
+            </div>
+            <div>
+              <Label className="text-xs">Default Rush Fee (%)</Label>
+              <Input name="defaultRushFeePercent" type="number" defaultValue={settings.defaultRushFeePercent ?? ""} className="h-9" min="0" step="0.01" placeholder="e.g. 20" />
+              <p className="text-[10px] text-muted-foreground mt-1">Added as a % of the invoice subtotal.</p>
             </div>
           </div>
         </CardContent>

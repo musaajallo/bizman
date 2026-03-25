@@ -14,6 +14,8 @@ export async function getInvoiceSettings(tenantId: string) {
   return {
     ...settings,
     defaultTaxRate: settings.defaultTaxRate ? Number(settings.defaultTaxRate) : null,
+    defaultDiscountPercent: settings.defaultDiscountPercent ? Number(settings.defaultDiscountPercent) : null,
+    defaultRushFeePercent: settings.defaultRushFeePercent ? Number(settings.defaultRushFeePercent) : null,
   };
 }
 
@@ -45,6 +47,14 @@ export async function updateInvoiceSettings(tenantId: string, formData: FormData
   if (formData.has("defaultTaxRate")) {
     const str = formData.get("defaultTaxRate") as string;
     data.defaultTaxRate = str ? parseFloat(str) : null;
+  }
+  if (formData.has("defaultDiscountPercent")) {
+    const str = formData.get("defaultDiscountPercent") as string;
+    data.defaultDiscountPercent = str ? parseFloat(str) : null;
+  }
+  if (formData.has("defaultRushFeePercent")) {
+    const str = formData.get("defaultRushFeePercent") as string;
+    data.defaultRushFeePercent = str ? parseFloat(str) : null;
   }
   if (formData.has("bankName")) {
     data.bankName = (formData.get("bankName") as string) || null;

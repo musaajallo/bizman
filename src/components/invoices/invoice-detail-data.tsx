@@ -26,7 +26,10 @@ interface InvoiceData {
   subtotal: number;
   taxRate: number | null;
   taxAmount: number;
+  discountPercent: number | null;
   discountAmount: number;
+  rushFeePercent: number | null;
+  rushFee: number;
   total: number;
   amountPaid: number;
   amountDue: number;
@@ -157,16 +160,26 @@ export function InvoiceDetailData({ invoice }: { invoice: InvoiceData }) {
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-mono">{fmt(invoice.subtotal, invoice.currency)}</span>
           </div>
-          {invoice.taxRate != null && invoice.taxRate > 0 && (
+          {invoice.rushFee > 0 && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax ({invoice.taxRate}%)</span>
-              <span className="font-mono">{fmt(invoice.taxAmount, invoice.currency)}</span>
+              <span className="text-muted-foreground">
+                Rush Fee{invoice.rushFeePercent ? ` (${invoice.rushFeePercent}%)` : ""}
+              </span>
+              <span className="font-mono text-amber-400">+{fmt(invoice.rushFee, invoice.currency)}</span>
             </div>
           )}
           {invoice.discountAmount > 0 && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount</span>
+              <span className="text-muted-foreground">
+                Discount{invoice.discountPercent ? ` (${invoice.discountPercent}%)` : ""}
+              </span>
               <span className="font-mono text-emerald-400">−{fmt(invoice.discountAmount, invoice.currency)}</span>
+            </div>
+          )}
+          {invoice.taxRate != null && invoice.taxRate > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax ({invoice.taxRate}%)</span>
+              <span className="font-mono">{fmt(invoice.taxAmount, invoice.currency)}</span>
             </div>
           )}
           <Separator />

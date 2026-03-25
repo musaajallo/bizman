@@ -38,7 +38,10 @@ export async function getInvoices(tenantId: string, filters?: {
     subtotal: Number(inv.subtotal),
     taxRate: inv.taxRate ? Number(inv.taxRate) : null,
     taxAmount: Number(inv.taxAmount),
+    discountPercent: inv.discountPercent ? Number(inv.discountPercent) : null,
     discountAmount: Number(inv.discountAmount),
+    rushFeePercent: inv.rushFeePercent ? Number(inv.rushFeePercent) : null,
+    rushFee: Number(inv.rushFee),
     total: Number(inv.total),
     amountPaid: Number(inv.amountPaid),
     amountDue: Number(inv.amountDue),
@@ -103,7 +106,10 @@ export async function getInvoice(invoiceId: string) {
     subtotal: Number(invoice.subtotal),
     taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
     taxAmount: Number(invoice.taxAmount),
+    discountPercent: invoice.discountPercent ? Number(invoice.discountPercent) : null,
     discountAmount: Number(invoice.discountAmount),
+    rushFeePercent: invoice.rushFeePercent ? Number(invoice.rushFeePercent) : null,
+    rushFee: Number(invoice.rushFee),
     total: Number(invoice.total),
     amountPaid: Number(invoice.amountPaid),
     amountDue: Number(invoice.amountDue),
@@ -142,7 +148,10 @@ export async function getInvoicesForProject(projectId: string) {
     subtotal: Number(inv.subtotal),
     taxRate: inv.taxRate ? Number(inv.taxRate) : null,
     taxAmount: Number(inv.taxAmount),
+    discountPercent: inv.discountPercent ? Number(inv.discountPercent) : null,
     discountAmount: Number(inv.discountAmount),
+    rushFeePercent: inv.rushFeePercent ? Number(inv.rushFeePercent) : null,
+    rushFee: Number(inv.rushFee),
     total: Number(inv.total),
     amountPaid: Number(inv.amountPaid),
     amountDue: Number(inv.amountDue),
@@ -164,7 +173,10 @@ export async function getInvoicesForClient(clientTenantId: string) {
     subtotal: Number(inv.subtotal),
     taxRate: inv.taxRate ? Number(inv.taxRate) : null,
     taxAmount: Number(inv.taxAmount),
+    discountPercent: inv.discountPercent ? Number(inv.discountPercent) : null,
     discountAmount: Number(inv.discountAmount),
+    rushFeePercent: inv.rushFeePercent ? Number(inv.rushFeePercent) : null,
+    rushFee: Number(inv.rushFee),
     total: Number(inv.total),
     amountPaid: Number(inv.amountPaid),
     amountDue: Number(inv.amountDue),
@@ -229,6 +241,10 @@ export async function createInvoice(formData: FormData) {
 
   const taxRateStr = formData.get("taxRate") as string | null;
   const taxRate = taxRateStr ? parseFloat(taxRateStr) : (settings?.defaultTaxRate ? Number(settings.defaultTaxRate) : null);
+  const discountPercentStr = formData.get("discountPercent") as string | null;
+  const discountPercent = discountPercentStr ? parseFloat(discountPercentStr) : null;
+  const rushFeePercentStr = formData.get("rushFeePercent") as string | null;
+  const rushFeePercent = rushFeePercentStr ? parseFloat(rushFeePercentStr) : null;
 
   const invoice = await prisma.invoice.create({
     data: {
@@ -245,6 +261,8 @@ export async function createInvoice(formData: FormData) {
       dueDate,
       currency: (formData.get("currency") as string) || "USD",
       taxRate,
+      discountPercent,
+      rushFeePercent,
       notes: (formData.get("notes") as string) || settings?.defaultNotes || null,
       terms: (formData.get("terms") as string) || settings?.defaultTerms || null,
       referenceNumber: (formData.get("referenceNumber") as string) || null,
@@ -393,7 +411,8 @@ export async function updateInvoice(invoiceId: string, formData: FormData) {
   if (invoice.status !== "draft") return { error: "Only draft invoices can be edited" };
 
   const taxRateStr = formData.get("taxRate") as string | null;
-  const discountStr = formData.get("discountAmount") as string | null;
+  const discountPercentStr = formData.get("discountPercent") as string | null;
+  const rushFeePercentStr = formData.get("rushFeePercent") as string | null;
 
   await prisma.invoice.update({
     where: { id: invoiceId },
@@ -406,7 +425,8 @@ export async function updateInvoice(invoiceId: string, formData: FormData) {
       dueDate: formData.get("dueDate") ? new Date(formData.get("dueDate") as string) : undefined,
       currency: (formData.get("currency") as string) || undefined,
       taxRate: taxRateStr ? parseFloat(taxRateStr) : null,
-      discountAmount: discountStr ? parseFloat(discountStr) : 0,
+      discountPercent: discountPercentStr ? parseFloat(discountPercentStr) : null,
+      rushFeePercent: rushFeePercentStr ? parseFloat(rushFeePercentStr) : null,
       notes: (formData.get("notes") as string) || null,
       terms: (formData.get("terms") as string) || null,
       referenceNumber: (formData.get("referenceNumber") as string) || null,
@@ -526,15 +546,22 @@ export async function recalculateInvoiceTotals(invoiceId: string) {
 
   const subtotal = invoice.lineItems.reduce((sum, li) => sum + Number(li.amount), 0);
   const taxRate = invoice.taxRate ? Number(invoice.taxRate) : 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
-  const discountAmount = Number(invoice.discountAmount) || 0;
-  const total = Math.round((subtotal + taxAmount - discountAmount) * 100) / 100;
+  const discountPercent = invoice.discountPercent ? Number(invoice.discountPercent) : null;
+  const rushFeePercent = invoice.rushFeePercent ? Number(invoice.rushFeePercent) : null;
+  const discountAmount = discountPercent != null
+    ? Math.round(subtotal * (discountPercent / 100) * 100) / 100
+    : Number(invoice.discountAmount) || 0;
+  const rushFee = rushFeePercent != null
+    ? Math.round(subtotal * (rushFeePercent / 100) * 100) / 100
+    : 0;
+  const taxAmount = Math.round((subtotal + rushFee - discountAmount) * (taxRate / 100) * 100) / 100;
+  const total = Math.round((subtotal + rushFee - discountAmount + taxAmount) * 100) / 100;
   const amountPaid = Number(invoice.amountPaid) || 0;
   const amountDue = Math.round((total - amountPaid) * 100) / 100;
 
   await prisma.invoice.update({
     where: { id: invoiceId },
-    data: { subtotal, taxAmount, total, amountDue },
+    data: { subtotal, taxAmount, discountAmount, rushFee, total, amountDue },
   });
 }
 
@@ -588,7 +615,10 @@ export async function duplicateInvoice(invoiceId: string) {
       taxRate: original.taxRate ? Number(original.taxRate) : null,
       subtotal: Number(original.subtotal),
       taxAmount: Number(original.taxAmount),
+      discountPercent: original.discountPercent ? Number(original.discountPercent) : null,
       discountAmount: Number(original.discountAmount),
+      rushFeePercent: original.rushFeePercent ? Number(original.rushFeePercent) : null,
+      rushFee: Number(original.rushFee),
       total: Number(original.total),
       amountDue: Number(original.total),
       notes: original.notes,
@@ -990,7 +1020,10 @@ export async function getInvoiceByToken(shareToken: string) {
     subtotal: Number(invoice.subtotal),
     taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
     taxAmount: Number(invoice.taxAmount),
+    discountPercent: invoice.discountPercent ? Number(invoice.discountPercent) : null,
     discountAmount: Number(invoice.discountAmount),
+    rushFeePercent: invoice.rushFeePercent ? Number(invoice.rushFeePercent) : null,
+    rushFee: Number(invoice.rushFee),
     total: Number(invoice.total),
     amountPaid: Number(invoice.amountPaid),
     amountDue: Number(invoice.amountDue),
@@ -1106,7 +1139,10 @@ export async function generateNextRecurringInvoice(invoiceId: string) {
       taxRate: original.taxRate ? Number(original.taxRate) : null,
       subtotal: Number(original.subtotal),
       taxAmount: Number(original.taxAmount),
+      discountPercent: original.discountPercent ? Number(original.discountPercent) : null,
       discountAmount: Number(original.discountAmount),
+      rushFeePercent: original.rushFeePercent ? Number(original.rushFeePercent) : null,
+      rushFee: Number(original.rushFee),
       total: Number(original.total),
       amountDue: Number(original.total),
       notes: original.notes,
@@ -1214,7 +1250,10 @@ export async function getRecurringInvoices(tenantId: string) {
     subtotal: Number(inv.subtotal),
     taxRate: inv.taxRate ? Number(inv.taxRate) : null,
     taxAmount: Number(inv.taxAmount),
+    discountPercent: inv.discountPercent ? Number(inv.discountPercent) : null,
     discountAmount: Number(inv.discountAmount),
+    rushFeePercent: inv.rushFeePercent ? Number(inv.rushFeePercent) : null,
+    rushFee: Number(inv.rushFee),
     total: Number(inv.total),
     amountPaid: Number(inv.amountPaid),
     amountDue: Number(inv.amountDue),
@@ -1464,7 +1503,10 @@ export async function convertProformaToInvoice(proformaId: string) {
       taxRate: proforma.taxRate ? Number(proforma.taxRate) : null,
       subtotal: Number(proforma.subtotal),
       taxAmount: Number(proforma.taxAmount),
+      discountPercent: proforma.discountPercent ? Number(proforma.discountPercent) : null,
       discountAmount: Number(proforma.discountAmount),
+      rushFeePercent: proforma.rushFeePercent ? Number(proforma.rushFeePercent) : null,
+      rushFee: Number(proforma.rushFee),
       total: Number(proforma.total),
       amountDue: Number(proforma.total),
       notes: proforma.notes,
@@ -1534,7 +1576,10 @@ export async function getCreditNotes(tenantId: string, filters?: { status?: stri
     subtotal: Number(inv.subtotal),
     taxRate: inv.taxRate ? Number(inv.taxRate) : null,
     taxAmount: Number(inv.taxAmount),
+    discountPercent: inv.discountPercent ? Number(inv.discountPercent) : null,
     discountAmount: Number(inv.discountAmount),
+    rushFeePercent: inv.rushFeePercent ? Number(inv.rushFeePercent) : null,
+    rushFee: Number(inv.rushFee),
     total: Number(inv.total),
     amountPaid: Number(inv.amountPaid),
     amountDue: Number(inv.amountDue),

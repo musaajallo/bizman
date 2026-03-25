@@ -21,7 +21,10 @@ interface InvoiceData {
   subtotal: number;
   taxRate: number | null;
   taxAmount: number;
+  discountPercent?: number | null;
   discountAmount: number;
+  rushFeePercent?: number | null;
+  rushFee?: number;
   total: number;
   amountPaid: number;
   amountDue: number;
@@ -342,16 +345,26 @@ export function InvoicePdfTemplate({ invoice, invoiceType, ownerName, ownerColor
               <Text style={styles.totalLabel}>Subtotal</Text>
               <Text style={styles.totalValue}>{formatCurrency(invoice.subtotal, invoice.currency)}</Text>
             </View>
-            {invoice.taxRate != null && invoice.taxRate > 0 && (
+            {(invoice.rushFee ?? 0) > 0 && (
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Tax ({invoice.taxRate}%)</Text>
-                <Text style={styles.totalValue}>{formatCurrency(invoice.taxAmount, invoice.currency)}</Text>
+                <Text style={styles.totalLabel}>
+                  Rush Fee{invoice.rushFeePercent ? ` (${invoice.rushFeePercent}%)` : ""}
+                </Text>
+                <Text style={styles.totalValue}>+{formatCurrency(invoice.rushFee!, invoice.currency)}</Text>
               </View>
             )}
             {invoice.discountAmount > 0 && (
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Discount</Text>
+                <Text style={styles.totalLabel}>
+                  Discount{invoice.discountPercent ? ` (${invoice.discountPercent}%)` : ""}
+                </Text>
                 <Text style={styles.totalValue}>-{formatCurrency(invoice.discountAmount, invoice.currency)}</Text>
+              </View>
+            )}
+            {invoice.taxRate != null && invoice.taxRate > 0 && (
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Tax ({invoice.taxRate}%)</Text>
+                <Text style={styles.totalValue}>{formatCurrency(invoice.taxAmount, invoice.currency)}</Text>
               </View>
             )}
             <View style={styles.totalRowBorder}>

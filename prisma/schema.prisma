@@ -669,8 +669,10 @@ model InvoiceSettings {
   bankRoutingNumber String?
   bankSwift         String?
   bankIban          String?
-  taxLabel          String?  @default("Tax")
-  defaultTaxRate    Decimal? @db.Decimal(5, 2)
+  taxLabel                String?  @default("Tax")
+  defaultTaxRate          Decimal? @db.Decimal(5, 2)
+  defaultDiscountPercent  Decimal? @db.Decimal(5, 2)
+  defaultRushFeePercent   Decimal? @db.Decimal(5, 2)
   proformaPrefix    String   @default("PRO")
   proformaNextNumber Int     @default(1)
   creditNotePrefix     String @default("CN")
@@ -749,7 +751,10 @@ model Invoice {
   subtotal        Decimal   @db.Decimal(12, 2) @default(0)
   taxRate         Decimal?  @db.Decimal(5, 2)
   taxAmount       Decimal   @db.Decimal(12, 2) @default(0)
+  discountPercent Decimal?  @db.Decimal(5, 2)
   discountAmount  Decimal   @db.Decimal(12, 2) @default(0)
+  rushFeePercent  Decimal?  @db.Decimal(5, 2)
+  rushFee         Decimal   @db.Decimal(12, 2) @default(0)
   total           Decimal   @db.Decimal(12, 2) @default(0)
   amountPaid      Decimal   @db.Decimal(12, 2) @default(0)
   amountDue       Decimal   @db.Decimal(12, 2) @default(0)
