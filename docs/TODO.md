@@ -117,10 +117,38 @@ Last updated: 2026-03-24
 - [ ] Invoice notifications (in-app + email on send, view, payment)
 - [ ] Billable services list — track which services generate revenue
 
-### Procurement — STUB 🪧
-- [ ] Prisma models: PurchaseOrder, PurchaseOrderItem, PurchaseRequisition
-- [ ] Requisition → approval → purchase order → received → billed flow
-- [ ] Link to vendors and bills
+### Procurement (Internal Buying) — NOT STARTED 🔲
+> Staff raise purchase requests internally. Manager approves, PO is issued to supplier, goods/services received, bill recorded.
+- [ ] Prisma models: Vendor, PurchaseRequisition, PurchaseRequisitionItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceipt
+- [ ] Vendor register (name, contact, category, payment terms, rating)
+- [ ] Requisition flow: draft → submitted → approved / rejected → PO raised
+- [ ] Purchase Order: issued to vendor, tracks expected delivery
+- [ ] Receive goods: partial or full receipt, outstanding quantities tracked
+- [ ] Link received PO to bill (Accounting) for payment
+- [ ] Approval rules: configurable spend thresholds per approver tier
+- [ ] Dashboard: open requisitions, pending POs, overdue deliveries
+
+### Tender Management (Issuing Tenders) — NOT STARTED 🔲
+> Company issues a formal tender / RFP inviting multiple suppliers to bid competitively. Used for large or complex purchases. Awarded tender feeds into Procurement (PO) or a Project.
+- [ ] Prisma models: Tender, TenderDocument, TenderBid, TenderBidItem, TenderEvaluation
+- [ ] Tender lifecycle: draft → published → bids open → evaluation → awarded → closed / cancelled
+- [ ] Publish tender with scope, requirements, deadline, and attached documents
+- [ ] Receive and record supplier bids (vendor, price breakdown, documents)
+- [ ] Evaluation matrix: score bids on weighted criteria (price, quality, delivery, compliance)
+- [ ] Award tender to winning bidder → auto-create PO or Project
+- [ ] Notify unsuccessful bidders
+- [ ] Dashboard: active tenders, bids received per tender, upcoming deadlines
+
+### Bid Management (Applying to Tenders) — NOT STARTED 🔲
+> Company identifies and responds to external tenders issued by other organisations. Tracks the full bid pipeline from opportunity through to win/loss. Won bid creates a Project.
+- [ ] Prisma models: BidOpportunity, BidDocument, BidSubmission, BidActivity
+- [ ] Opportunity lifecycle: identified → qualifying → preparing → submitted → shortlisted → won / lost / withdrawn
+- [ ] Capture opportunity details: issuing org, sector, value estimate, deadline, source
+- [ ] Attach bid documents (proposal, financials, certificates)
+- [ ] Team assignment: who is responsible for each bid
+- [ ] Win/loss reasons and post-bid review notes
+- [ ] Won bid → auto-create Project (pre-filled with client, value, scope)
+- [ ] Dashboard: pipeline by stage, win rate, total bid value in progress, upcoming submission deadlines
 
 ### Assets — STUB 🪧
 - [ ] Prisma models: Asset, AssetMaintenance, AssetAssignment
