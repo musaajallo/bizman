@@ -63,14 +63,48 @@ Last updated: 2026-03-24
 - [x] Pages: list, new, overview, board, calendar, timeline, time, settings, reports, templates
 - [x] Client-scoped pages mirrored under `/clients/[slug]/projects/`
 
-### Phase 5: Milestones & Billing — NOT STARTED 🔲
-- [ ] Attach tasks to milestones
-- [ ] Milestone payment tracking
-- [ ] Auto-generate proforma/invoice when milestone is marked complete
-- [ ] Gantt chart view (visual timeline with dependencies)
-- [ ] List view as default; current card grid becomes secondary view
+### Phase 5: Milestones, Payment Triggers & Task Hierarchy — NOT STARTED 🔲
+> Milestones become structural containers: tasks and sub-tasks live under a milestone. Each milestone can carry a payment trigger that auto-generates an invoice on demand.
 
-### Phase 6: Tenders — NOT STARTED 🔲
+#### Milestone Enhancements
+- [ ] Prisma model updates: add `milestoneId` to `Task` (link tasks to a milestone), enhance `Milestone` with description, completion status, payment trigger fields
+- [ ] Milestone view within a project: list milestones with their tasks collapsed/expanded under each
+- [ ] Tasks and sub-tasks assignable to a milestone (milestone acts as a grouping layer above tasks)
+- [ ] Milestone progress: auto-calculated from % of linked tasks completed
+- [ ] Milestone status: not_started → in_progress → completed → delayed
+- [ ] Re-order milestones via drag-and-drop
+
+#### Payment Triggers
+- [ ] Prisma model: `MilestonePayment` — amount, currency, invoiceId (null until triggered), notes, triggerType (on_completion | manual), triggeredAt, triggeredById
+- [ ] Each milestone can have one payment trigger (amount, currency, description)
+- [ ] "Trigger Payment" action button on milestone → creates a draft invoice pre-filled with: client from project, line item = milestone name + description, amount from trigger, project reference
+- [ ] Triggered invoice linked back to milestone (can't trigger twice unless previous invoice is voided)
+- [ ] Milestone card shows payment status: pending / invoiced / paid (derived from linked invoice status)
+
+#### Gantt / Timeline
+- [ ] Gantt chart view with milestones as major markers and tasks as bars
+- [ ] Dependency arrows between tasks
+
+### Phase 6: Delay Tracking & Communications Log — NOT STARTED 🔲
+> Structured audit trail of delays and all client communications per task and milestone. Both logs are exportable as CSV and PDF.
+
+#### Delay Tracking
+- [ ] Prisma model: `TaskDelay` — taskId, milestoneId (optional), originalDueDate, revisedDueDate, delayDays (computed), reason (text), impact (text), clientNotified (bool), recordedById, createdAt
+- [ ] Log a delay from the task detail panel: captures original due date, new due date, reason, impact description
+- [ ] Delay automatically flags the task and milestone with a "delayed" indicator
+- [ ] Delay history tab on task detail (all logged delays for that task)
+- [ ] Project-level delay log: all delays across all tasks and milestones, filterable by date / milestone / severity
+- [ ] Export delay log: CSV (all fields) + PDF (formatted report with project header, delay table, total days lost)
+
+#### Client Communications Log
+- [ ] Prisma model: `ProjectCommunication` — projectId, taskId (optional), milestoneId (optional), direction (inbound | outbound), channel (email | phone | meeting | message | portal), subject, content (text), attachmentUrls (string[]), contactName, contactEmail, recordedById, communicatedAt, createdAt
+- [ ] Log a communication from task detail or project-level comms tab: direction, channel, contact, subject, body, date/time
+- [ ] Communications tab on task detail: chronological log of all comms for that task
+- [ ] Project-level communications log: all comms across all tasks, filterable by channel / direction / task / date range
+- [ ] Export communications log: CSV (all fields) + PDF (formatted log with project header, grouped by task or date)
+- [ ] Bulk export: download both delay log and comms log as a combined ZIP
+
+### Phase 7: Tenders — NOT STARTED 🔲
 - [ ] Prisma models: Tender, TenderDocument, TenderBid
 - [ ] Create and track tenders (application → shortlisted → awarded → complete)
 - [ ] Attach documents to tenders

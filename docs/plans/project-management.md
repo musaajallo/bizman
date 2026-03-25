@@ -373,6 +373,249 @@ All follow existing pattern: `auth()` guard → FormData or params → Prisma qu
 
 ---
 
+---
+
+## Phase 5: Milestones, Payment Triggers & Task Hierarchy
+
+### Overview
+
+Milestones become first-class containers. Tasks (and their sub-tasks) attach to a milestone, making the project structure three levels deep:
+
+```
+Project
+  └── Milestone  (e.g. "Phase 1 — Discovery")
+        ├── Task  (e.g. "Stakeholder interviews")
+        │     └── Sub-task  (e.g. "Prepare interview questions")
+        └── Task  (e.g. "Deliver findings report")
+```
+
+Milestones without a payment trigger behave as pure organisational groupings. With a trigger, one click generates a pre-filled invoice.
+
+### Schema Changes
+
+```prisma
+// Enhance existing Milestone model
+model Milestone {
+  id            String    @id @default(cuid())
+  projectId     String
+  name          String
+  description   String?   @db.Text
+  dueDate       DateTime?
+  status        String    @default("not_started")
+  // not_started | in_progress | completed | delayed
+  completedAt   DateTime?
+  order         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks         Task[]    // tasks grouped under this milestone
+  payment       MilestonePayment?
+  delays        TaskDelay[]
+}
+
+// Add milestoneId to Task (nullable — task may or may not belong to a milestone)
+// ALTER: Task.milestoneId String? → Milestone
+
+// New: payment trigger per milestone
+model MilestonePayment {
+  id              String    @id @default(cuid())
+  milestoneId     String    @unique
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("USD")
+  description     String?   // Pre-fills invoice line item description
+  triggerType     String    @default("manual")  // "manual" | "on_completion"
+  invoiceId       String?   @unique             // Set once triggered; prevents double-trigger
+  triggeredAt     DateTime?
+  triggeredById   String?
+
+  milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id])
+}
+```
+
+### Payment Trigger Logic
+
+When a user clicks "Trigger Payment" on a milestone:
+
+1. Guard: check `MilestonePayment.invoiceId == null` (or linked invoice is voided) — prevent double invoicing
+2. Call `createInvoice` internally with:
+   - `clientTenantId` / `clientName` from the project
+   - `projectId` linked
+   - `referenceNumber` = milestone name
+   - Line item: `description = payment.description ?? milestone.name`, `quantity = 1`, `unitPrice = payment.amount`
+   - `currency` from payment trigger
+3. Set `MilestonePayment.invoiceId = newInvoice.id`, `triggeredAt = now()`, `triggeredById`
+4. Milestone card updates to show "Invoiced" badge with link to invoice
+
+**Re-triggering:** Only allowed if the linked invoice has been voided. Guard check:
+```
+allowed = invoiceId == null || linkedInvoice.status == "void"
+```
+
+### UI
+
+**Milestone card** (in project task list or dedicated milestones tab):
+```
+┌─────────────────────────────────────────────────────────┐
+│  ● Phase 1 — Discovery          [In Progress]  Due Jul 5│
+│  ─────────────────────────────────────────────────────  │
+│  3 of 5 tasks complete  ████████░░  60%                 │
+│                                                         │
+│  Payment: $4,500 USD                [Trigger Invoice →] │
+│  or if triggered:     Invoice #INV-042  [Paid ✓]        │
+└─────────────────────────────────────────────────────────┘
+```
+
+Tasks are shown indented under their milestone. Tasks with no milestone appear in an "Unassigned" section at the bottom.
+
+---
+
+## Phase 6: Delay Tracking & Client Communications Log
+
+### Overview
+
+Two parallel audit trails attached to tasks and milestones:
+
+- **Delay log** — structured record of every time a due date slips, with reason and impact
+- **Communications log** — every client interaction (email, call, meeting, message) logged against a task or milestone
+
+Both are exportable. The combination gives a complete project paper trail — critical for dispute resolution, billing justification, and client reporting.
+
+### Schema
+
+```prisma
+model TaskDelay {
+  id              String    @id @default(cuid())
+  projectId       String
+  taskId          String?
+  milestoneId     String?
+  originalDueDate DateTime
+  revisedDueDate  DateTime
+  delayDays       Int                           // computed: revisedDueDate - originalDueDate in days
+  reason          String    @db.Text            // Why the delay happened
+  impact          String?   @db.Text            // What this affects downstream
+  clientNotified  Boolean   @default(false)
+  recordedById    String
+  createdAt       DateTime  @default(now())
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task            Task?     @relation(fields: [taskId], references: [id])
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id])
+  recordedBy      User      @relation(fields: [recordedById], references: [id])
+
+  @@index([projectId])
+  @@index([taskId])
+}
+
+model ProjectCommunication {
+  id              String    @id @default(cuid())
+  projectId       String
+  taskId          String?                       // Optional: attach to a specific task
+  milestoneId     String?                       // Optional: attach to a milestone
+  direction       String                        // "inbound" | "outbound"
+  channel         String                        // "email" | "phone" | "meeting" | "message" | "portal" | "other"
+  subject         String
+  content         String    @db.Text
+  attachmentUrls  String[]                      // Links to uploaded files if any
+  contactName     String?                       // Client contact who communicated
+  contactEmail    String?
+  recordedById    String
+  communicatedAt  DateTime                      // When the actual communication happened
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task            Task?     @relation(fields: [taskId], references: [id])
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id])
+  recordedBy      User      @relation(fields: [recordedById], references: [id])
+
+  @@index([projectId, communicatedAt])
+  @@index([taskId])
+}
+```
+
+### Delay Tracking UI
+
+**Log delay dialog** (triggered from task detail or milestone card):
+- Original due date (pre-filled from task/milestone current due date, read-only)
+- New due date (date picker)
+- Delay days (auto-computed, shown as "X days")
+- Reason (textarea, required)
+- Impact (textarea, optional — what downstream work is affected)
+- "Client notified?" toggle
+
+**Task detail — Delays tab:**
+- Timeline of all delays logged for this task
+- Each entry: date logged, original → revised due date, delay days badge, reason, impact, who logged it
+- "Log Delay" button
+
+**Project delays page** (`/africs/projects/[slug]/delays`):
+- Table of all delays across the project, grouped by milestone
+- Columns: Task / Milestone, Original Due, Revised Due, Days Lost, Reason, Client Notified, Logged By, Date
+- Filter by: milestone, date range, client-notified status
+- Summary row: total days lost across project
+
+### Communications Log UI
+
+**Log communication dialog** (from task detail, milestone card, or project comms tab):
+- Direction: Inbound / Outbound toggle
+- Channel: Email / Phone / Meeting / Message / Portal / Other
+- Date & time (defaults to now)
+- Contact name + email (pre-filled from project client if available)
+- Subject
+- Content (textarea)
+- Attachment URLs (freeform, or future: file upload)
+
+**Task detail — Communications tab:**
+- Chronological list of all comms for this task
+- Each entry: direction arrow (↙ inbound / ↗ outbound), channel icon, date, subject, contact, recorded by
+- Expandable to show full content
+
+**Project communications page** (`/africs/projects/[slug]/communications`):
+- Full log across all tasks and milestones
+- Filter by: channel, direction, task/milestone, contact, date range
+- Search by subject or content keyword
+- "Log Communication" button (choose which task/milestone to attach to)
+
+### Export
+
+Both logs are exported from the project-level pages.
+
+**Delay log export (CSV):**
+```
+Project, Milestone, Task, Original Due, Revised Due, Days Lost, Reason, Impact, Client Notified, Logged By, Date Logged
+```
+
+**Delay log export (PDF):**
+- Header: Project name, client, export date
+- Summary: total delays, total days lost, % of tasks affected
+- Table grouped by milestone, sorted by date
+
+**Communications log export (CSV):**
+```
+Project, Milestone, Task, Direction, Channel, Date, Subject, Contact Name, Contact Email, Content, Recorded By
+```
+
+**Communications log export (PDF):**
+- Header: Project name, client, date range
+- Entries grouped by task/milestone, sorted chronologically
+- Each entry shows direction, channel, date, subject, and full content
+
+**Combined export (ZIP):**
+- `delays.csv`, `delays.pdf`, `communications.csv`, `communications.pdf` in a single download
+
+### New Pages
+
+```
+/africs/projects/[slug]/delays              Project delay log
+/africs/projects/[slug]/communications      Project communications log
+```
+
+Both pages are also accessible from the project's view switcher / tab bar. The export buttons live at the top-right of each page alongside the "Log ..." action button.
+
+---
+
 ## Verification
 
 After Phase 1 implementation:
