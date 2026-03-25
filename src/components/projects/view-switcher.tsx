@@ -1,12 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { List, LayoutGrid, CalendarDays, BarChart3, GanttChart, Clock } from "lucide-react";
+import { List, LayoutGrid, CalendarDays, BarChart3, GanttChart, Clock, SquareStack } from "lucide-react";
 import Link from "next/link";
 
 interface ViewSwitcherProps {
-  currentView: "list" | "board" | "calendar" | "overview" | "timeline" | "time";
+  currentView: "cards" | "list" | "board" | "calendar" | "overview" | "timeline" | "time";
   baseUrl: string;
+  showCards?: boolean;
   showCalendar?: boolean;
   showOverview?: boolean;
   showTimeline?: boolean;
@@ -16,6 +17,7 @@ interface ViewSwitcherProps {
 export function ViewSwitcher({
   currentView,
   baseUrl,
+  showCards = false,
   showCalendar = false,
   showOverview = false,
   showTimeline = false,
@@ -23,7 +25,19 @@ export function ViewSwitcher({
 }: ViewSwitcherProps) {
   return (
     <div className="inline-flex items-center rounded-md border bg-muted/50 p-0.5">
-      <Link href={baseUrl}>
+      {showCards && (
+        <Link href={baseUrl}>
+          <Button
+            size="sm"
+            variant={currentView === "cards" ? "secondary" : "ghost"}
+            className="h-7 px-2.5 gap-1.5 text-xs"
+          >
+            <SquareStack className="h-3.5 w-3.5" />
+            Cards
+          </Button>
+        </Link>
+      )}
+      <Link href={showCards ? `${baseUrl}?view=list` : baseUrl}>
         <Button
           size="sm"
           variant={currentView === "list" ? "secondary" : "ghost"}
