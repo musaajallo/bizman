@@ -152,16 +152,18 @@ Last updated: 2026-03-24
 - [ ] Invoice notifications (in-app + email on send, view, payment)
 - [ ] Billable services list — track which services generate revenue
 
-### Procurement (Internal Buying) — NOT STARTED 🔲
+### Procurement (Internal Buying) — DONE ✅
 > Staff raise purchase requests internally. Manager approves, PO is issued to supplier, goods/services received, bill recorded.
-- [ ] Prisma models: Vendor, PurchaseRequisition, PurchaseRequisitionItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceipt
-- [ ] Vendor register (name, contact, category, payment terms, rating)
-- [ ] Requisition flow: draft → submitted → approved / rejected → PO raised
-- [ ] Purchase Order: issued to vendor, tracks expected delivery
-- [ ] Receive goods: partial or full receipt, outstanding quantities tracked
-- [ ] Link received PO to bill (Accounting) for payment
-- [ ] Approval rules: configurable spend thresholds per approver tier
-- [ ] Dashboard: open requisitions, pending POs, overdue deliveries
+- [x] Prisma models: Vendor, PurchaseRequisition, PurchaseRequisitionItem, PurchaseOrder, PurchaseOrderItem, GoodsReceipt, GoodsReceiptItem, ProcurementSettings
+- [x] Vendor register (name, contact, category, payment terms, rating)
+- [x] Requisition flow: draft → pending_approval → approved / rejected → converted → cancelled
+- [x] Purchase Order: issued to vendor, tracks expected delivery, currency, tax
+- [x] Receive goods: GoodsReceipt with per-line quantities, partial receipt support
+- [x] Link received PO to Bill (Accounting) — convertPoToBill action
+- [x] Convert approved requisition to PO — convertRequisitionToPo action
+- [x] Stats dashboard: open requisitions, pending POs, total PO value
+- [x] Pages: /accounting/procurement (tabbed list), requisitions/new, /[id], /[id]/edit, orders/new, /[id], /[id]/edit, /[id]/receive
+- [x] Vendor pages: /accounting/vendors (list), /new, /[id], /[id]/edit
 
 ### Tender Management (Issuing Tenders) — NOT STARTED 🔲
 > Company issues a formal tender / RFP inviting multiple suppliers to bid competitively. Used for large or complex purchases. Awarded tender feeds into Procurement (PO) or a Project.
@@ -231,17 +233,17 @@ Last updated: 2026-03-24
 - [x] Staff ID card + Business card (PDF)
 - [x] Employee profile PDF export
 
-### Time & Attendance — NOT STARTED 🔲
+### Time & Attendance — IN PROGRESS 🔄
 > Hardware-agnostic clock-in/out system. Supports ZKTeco device integration, third-party scanners via webhook, and an independent QR code companion app. Feeds into Timesheets, Overtime, and Payroll.
 
-#### Phase 1: Core Engine
-- [ ] Prisma models: AttendanceDevice, AttendanceRecord, AttendanceLog, Shift, ShiftAssignment, EmployeeQRCode
-- [ ] Shift definitions (start/end time, break duration, grace period, applicable days)
-- [ ] Shift assignment per employee or department
-- [ ] Raw attendance record ingestion (clock-in / clock-out, source, device)
-- [ ] Daily log processing: derive present/absent/late/early-departure/overtime from raw records
-- [ ] Manual record entry and correction (admin/HR override)
-- [ ] Dashboard: today's attendance summary, who's in/out, late arrivals, absences
+#### Phase 1: Core Engine — DONE ✅
+- [x] Prisma models: AttendanceDevice, AttendanceRecord, AttendanceLog, Shift, ShiftAssignment, EmployeeQRCode
+- [x] Shift definitions (start/end time, break duration, grace period, applicable days)
+- [x] Shift assignment per employee or department
+- [x] Raw attendance record ingestion (clock-in / clock-out, source, device)
+- [x] Daily log processing: derive present/absent/late/early-departure/overtime from raw records
+- [x] Manual record entry and correction (admin/HR override)
+- [x] Dashboard: today's attendance summary, who's in/out, late arrivals, absences
 
 #### Phase 2: QR Code (Independent Mode)
 - [ ] QR code generation per employee (unique, rotatable, with optional expiry)

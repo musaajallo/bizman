@@ -191,6 +191,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Appraisals", href: "/africs/hr/appraisals", icon: Award, description: "Performance reviews and goals" },
           { label: "Timesheets", href: "/africs/hr/timesheets", icon: Timer, description: "Daily attendance and hours logged" },
           { label: "Overtime", href: "/africs/hr/overtime", icon: AlarmClock, description: "Overtime tracking and approvals" },
+          { label: "Attendance", href: "/africs/hr/attendance", icon: Clock, description: "Shifts, clock-in records and daily logs" },
           { label: "Talent Pool", href: "/africs/hr/talent-pool", icon: UsersRound, description: "Candidate database and expressions of interest" },
           { label: "Referrals", href: "/africs/hr/referrals", icon: UserRoundPlus, description: "Employee referral programs" },
         ],
