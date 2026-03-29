@@ -171,15 +171,17 @@ Last updated: 2026-03-24
 - [ ] Apply categories to: Expense records, Bill line items, Purchase Order line items
 - [ ] Category spend report: total spend per category for any date range
 
-### Loans — NOT STARTED 🔲
+### Loans — DONE ✅
 > Track money the company lends to staff or owners (salary advances, personal loans). Distinct from bills and expenses.
-- [ ] Prisma models: Loan, LoanRepayment
-- [ ] Loan types: staff loan, owner/director loan, salary advance
-- [ ] Loan lifecycle: applied → approved → disbursed → active → settled / defaulted / written off
-- [ ] Per-loan: borrower (Employee or Tenant owner), principal, interest rate, repayment schedule (monthly/weekly/lump sum), disbursement date
-- [ ] Repayment log: record each repayment (amount, date, method), auto-update outstanding balance
-- [ ] Payroll deduction: flag a loan for automatic repayment deduction during payroll run
-- [ ] Loan summary dashboard: total outstanding, repayments this month, overdue loans
+- [x] Prisma models: Loan, LoanRepayment
+- [x] Loan types: staff loan, owner/director loan, salary advance
+- [x] Loan lifecycle: applied → approved → disbursed → active → settled / defaulted / written off
+- [x] Per-loan: borrower (Employee or Tenant owner), principal, interest rate, repayment schedule (monthly/weekly/lump sum), disbursement date
+- [x] Repayment log: record each repayment (amount, date, method), auto-update outstanding balance
+- [x] Payroll deduction flag per loan
+- [x] Loan summary dashboard: total outstanding, repayments this month
+- [x] Auto-settle when fully repaid
+- [ ] Payroll integration (auto-deduct flagged loans during payroll run)
 - [ ] Link to Chart of Accounts (loans receivable account)
 
 ### Budgets — NOT STARTED 🔲
@@ -366,14 +368,15 @@ Last updated: 2026-03-24
 - [x] Assign benefits per employee or grade (via employee profile)
 - [ ] Payroll integration (benefits as deductions/additions)
 
-### Promotion, Demotion & Disciplinary — NOT STARTED 🔲
-- [ ] Prisma models: StaffMovement (covers promotion/demotion/transfer), DisciplinaryRecord, DisciplinaryNotice
-- [ ] Movement types: promotion, demotion, lateral transfer, department transfer, role change
-- [ ] Promotion/demotion workflow: propose (with new title + salary) → HR review → approved → auto-updates employee record (job title, salary, grade)
-- [ ] Department & unit transfer: record old dept/unit → new dept/unit, effective date, reason — full history on employee profile
-- [ ] Movement history tab on employee profile (all promotions, demotions, transfers in chronological order)
-- [ ] Disciplinary workflow: verbal warning → written warning → final written warning → termination
-- [ ] Disciplinary record: incident date, description, action taken, issued by, employee acknowledgement
+### Promotion, Demotion & Disciplinary — DONE ✅
+- [x] Prisma models: StaffMovement (covers promotion/demotion/transfer), DisciplinaryRecord
+- [x] Movement types: promotion, demotion, lateral transfer, department transfer, role change
+- [x] Record movement with old→new values, effective date, reason
+- [x] Option to apply changes to employee record immediately
+- [x] Department & unit transfer tracking with history
+- [x] Disciplinary record: incident date, description, action taken, employee acknowledgement
+- [x] Disciplinary status: pending → acknowledged → closed
+- [ ] Movement history tab on employee profile
 - [ ] Notice generation (PDF): promotion letter, demotion notice, warning letter, termination notice
 
 ### Health & Safety — NOT STARTED 🔲

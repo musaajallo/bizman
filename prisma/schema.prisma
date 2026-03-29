@@ -232,6 +232,10 @@ model Tenant {
   // HR movements & disciplinary
   staffMovements      StaffMovement[]
   disciplinaryRecords DisciplinaryRecord[]
+
+  // Loans
+  loans              Loan[]
+  loanRepayments     LoanRepayment[]
 }
 
 model TenantUser {
@@ -1147,6 +1151,7 @@ model Employee {
   hiredApplications Application[]     @relation("HiredEmployee")
   staffMovements    StaffMovement[]
   disciplinaryRecords DisciplinaryRecord[]
+  loans             Loan[]
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -2272,4 +2277,64 @@ model DisciplinaryRecord {
 
   @@index([tenantId, employeeId])
   @@index([tenantId, actionType])
+}
+
+// --- Loans ---
+
+model Loan {
+  id              String    @id @default(cuid())
+  tenantId        String
+
+  // staff_loan | owner_loan | salary_advance
+  loanType        String
+  loanNumber      String
+
+  // Borrower — either an employee or owner (stored as label if not an employee)
+  employeeId      String?
+  borrowerName    String    // denormalized for display
+
+  principal       Decimal   @db.Decimal(12, 2)
+  interestRate    Decimal   @db.Decimal(5, 2) @default(0)
+  currency        String    @default("GMD")
+
+  // monthly | weekly | lump_sum
+  repaymentSchedule String  @default("monthly")
+  repaymentAmount   Decimal? @db.Decimal(12, 2)
+  disbursementDate  DateTime?
+
+  // applied | approved | disbursed | active | settled | defaulted | written_off
+  status          String    @default("applied")
+  payrollDeduction Boolean  @default(false)
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  repayments LoanRepayment[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, loanType])
+  @@index([employeeId])
+}
+
+model LoanRepayment {
+  id        String   @id @default(cuid())
+  loanId    String
+  tenantId  String
+
+  amount    Decimal  @db.Decimal(12, 2)
+  // cash | bank_transfer | payroll_deduction
+  method    String   @default("bank_transfer")
+  paidAt    DateTime
+  notes     String?  @db.Text
+
+  createdAt DateTime @default(now())
+
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([tenantId])
 }

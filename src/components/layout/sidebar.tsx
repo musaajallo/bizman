@@ -164,6 +164,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Expenses", href: "/africs/accounting/expenses", icon: Receipt, description: "Track and approve business expenses" },
           { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
           { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and requisitions" },
+          { label: "Loans", href: "/africs/accounting/loans", icon: Banknote, description: "Staff loans, owner loans and salary advances" },
           { label: "Assets", href: "/africs/accounting/assets", icon: Boxes, description: "Track and manage company assets and equipment" },
         ],
       },

@@ -62,7 +62,7 @@ export function MovementForm({ employees }: { employees: Employee[] }) {
 
     startTransition(async () => {
       const result = await createStaffMovement(fd);
-      if ("error" in result) { setError(result.error); return; }
+      if ("error" in result) { setError(result.error ?? "Unknown error"); return; }
       router.push("/africs/hr/movements");
     });
   }

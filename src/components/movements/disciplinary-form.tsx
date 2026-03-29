@@ -42,7 +42,7 @@ export function DisciplinaryForm({ employees }: { employees: Employee[] }) {
 
     startTransition(async () => {
       const result = await createDisciplinaryRecord(fd);
-      if ("error" in result) { setError(result.error); return; }
+      if ("error" in result) { setError(result.error ?? "Unknown error"); return; }
       router.push("/africs/hr/movements?tab=disciplinary");
     });
   }
