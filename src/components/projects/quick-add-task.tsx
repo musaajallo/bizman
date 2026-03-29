@@ -8,9 +8,11 @@ import { useState } from "react";
 
 export function QuickAddTask({
   projectId,
+  milestoneId,
   onAdded,
 }: {
   projectId: string;
+  milestoneId?: string;
   onAdded?: () => void;
 }) {
   const [title, setTitle] = useState("");
@@ -24,6 +26,7 @@ export function QuickAddTask({
     const formData = new FormData();
     formData.set("projectId", projectId);
     formData.set("title", title.trim());
+    if (milestoneId) formData.set("milestoneId", milestoneId);
 
     const result = await createTask(formData);
     setLoading(false);

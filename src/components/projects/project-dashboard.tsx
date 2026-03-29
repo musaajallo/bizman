@@ -31,8 +31,19 @@ interface MilestoneData {
   name: string;
   description: string | null;
   dueDate: Date | string | null;
+  status: string;
   completed: boolean;
   completedAt: Date | string | null;
+  payment?: {
+    amount: { toString(): string } | number | string;
+    currency: string;
+    description: string | null;
+    triggerType: string;
+    invoiceId: string | null;
+    triggeredAt: Date | string | null;
+    invoice: { id: string; invoiceNumber: string; status: string } | null;
+  } | null;
+  _count?: { tasks: number };
 }
 
 interface ActivityData {

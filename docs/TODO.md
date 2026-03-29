@@ -63,23 +63,24 @@ Last updated: 2026-03-24
 - [x] Pages: list, new, overview, board, calendar, timeline, time, settings, reports, templates
 - [x] Client-scoped pages mirrored under `/clients/[slug]/projects/`
 
-### Phase 5: Milestones, Payment Triggers & Task Hierarchy — NOT STARTED 🔲
+### Phase 5: Milestones, Payment Triggers & Task Hierarchy — DONE ✅
 > Milestones become structural containers: tasks and sub-tasks live under a milestone. Each milestone can carry a payment trigger that auto-generates an invoice on demand.
 
 #### Milestone Enhancements
-- [ ] Prisma model updates: add `milestoneId` to `Task` (link tasks to a milestone), enhance `Milestone` with description, completion status, payment trigger fields
-- [ ] Milestone view within a project: list milestones with their tasks collapsed/expanded under each
-- [ ] Tasks and sub-tasks assignable to a milestone (milestone acts as a grouping layer above tasks)
-- [ ] Milestone progress: auto-calculated from % of linked tasks completed
-- [ ] Milestone status: not_started → in_progress → completed → delayed
+- [x] Prisma model updates: add `milestoneId` to `Task` (link tasks to a milestone), enhance `Milestone` with description, completion status, payment trigger fields
+- [x] Milestone view within a project: list milestones with their tasks collapsed/expanded under each
+- [x] Tasks and sub-tasks assignable to a milestone (milestone acts as a grouping layer above tasks)
+- [x] Milestone progress: auto-calculated from % of linked tasks completed
+- [x] Milestone status: not_started → in_progress → completed → delayed
 - [ ] Re-order milestones via drag-and-drop
 
 #### Payment Triggers
-- [ ] Prisma model: `MilestonePayment` — amount, currency, invoiceId (null until triggered), notes, triggerType (on_completion | manual), triggeredAt, triggeredById
-- [ ] Each milestone can have one payment trigger (amount, currency, description)
-- [ ] "Trigger Payment" action button on milestone → creates a draft invoice pre-filled with: client from project, line item = milestone name + description, amount from trigger, project reference
-- [ ] Triggered invoice linked back to milestone (can't trigger twice unless previous invoice is voided)
-- [ ] Milestone card shows payment status: pending / invoiced / paid (derived from linked invoice status)
+- [x] Prisma model: `MilestonePayment` — amount, currency, invoiceId (null until triggered), description, triggerType (on_completion | manual), triggeredAt, triggeredById
+- [x] Each milestone can have one payment trigger (amount, currency, description)
+- [x] "Trigger Invoice" action button on milestone → creates a draft invoice pre-filled with: client from project, line item = milestone name + description, amount from trigger, project reference
+- [x] Triggered invoice linked back to milestone (can't trigger twice unless previous invoice is voided)
+- [x] Milestone card shows payment status: pending / invoiced / paid (derived from linked invoice status)
+- [x] Auto-trigger on_completion: when milestone status set to completed and triggerType is on_completion, invoice fires automatically
 
 #### Gantt / Timeline
 - [ ] Gantt chart view with milestones as major markers and tasks as bars

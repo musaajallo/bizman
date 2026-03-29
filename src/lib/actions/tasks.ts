@@ -22,7 +22,7 @@ export async function getTasksByProject(projectId: string, filters?: {
       assignee: { select: { id: true, name: true, image: true } },
       _count: { select: { subtasks: true } },
     },
-    orderBy: [{ status: { order: "asc" } }, { order: "asc" }],
+    orderBy: [{ milestoneId: "asc" }, { status: { order: "asc" } }, { order: "asc" }],
   });
 }
 
@@ -58,6 +58,7 @@ export async function createTask(formData: FormData) {
       projectId,
       statusId,
       parentId: (formData.get("parentId") as string) || undefined,
+      milestoneId: (formData.get("milestoneId") as string) || undefined,
       title,
       description: (formData.get("description") as string) || undefined,
       priority: (formData.get("priority") as string) || "medium",

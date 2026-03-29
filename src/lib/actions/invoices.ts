@@ -185,7 +185,7 @@ export async function getInvoicesForClient(clientTenantId: string) {
 
 // --- Auto-number ---
 
-async function generateInvoiceNumber(tenantId: string, type: string = "standard"): Promise<string> {
+export async function generateInvoiceNumber(tenantId: string, type: string = "standard"): Promise<string> {
   const settings = await prisma.invoiceSettings.findUnique({ where: { tenantId } });
 
   let prefix: string;

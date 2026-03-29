@@ -482,6 +482,9 @@ model Task {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  milestoneId String?
+  milestone   Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
   project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   status   ProjectStatus @relation(fields: [statusId], references: [id])
   parent   Task?         @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
@@ -501,6 +504,7 @@ model Task {
   @@index([projectId, statusId, order])
   @@index([assigneeId])
   @@index([parentId])
+  @@index([milestoneId])
 }
 
 model TaskComment {
@@ -553,16 +557,35 @@ model Milestone {
   id          String    @id @default(cuid())
   projectId   String
   name        String
-  description String?
+  description String?   @db.Text
   dueDate     DateTime?
+  status      String    @default("not_started") // not_started | in_progress | completed | delayed
   completed   Boolean   @default(false)
   completedAt DateTime?
   order       Int       @default(0)
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+  payment MilestonePayment?
 
   @@index([projectId, order])
+}
+
+model MilestonePayment {
+  id            String    @id @default(cuid())
+  milestoneId   String    @unique
+  amount        Decimal   @db.Decimal(12, 2)
+  currency      String    @default("USD")
+  description   String?
+  triggerType   String    @default("manual") // manual | on_completion
+  invoiceId     String?   @unique
+  triggeredAt   DateTime?
+  triggeredById String?
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 }
 
 // --- Project Activity Log ---
@@ -792,10 +815,11 @@ model Invoice {
   creditNoteFor Invoice?         @relation("CreditNoteFor", fields: [creditNoteForId], references: [id], onDelete: SetNull)
   creditNotes   Invoice[]        @relation("CreditNoteFor")
   createdBy     User             @relation(fields: [createdById], references: [id])
-  lineItems     InvoiceLineItem[]
-  payments      InvoicePayment[]
-  appliedAsCredits InvoicePayment[] @relation("CreditNotePayment")
-  activities    InvoiceActivity[]
+  lineItems        InvoiceLineItem[]
+  payments         InvoicePayment[]
+  appliedAsCredits InvoicePayment[]  @relation("CreditNotePayment")
+  activities       InvoiceActivity[]
+  milestonePayment MilestonePayment?
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, type, status])
