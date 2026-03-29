@@ -228,6 +228,10 @@ model Tenant {
   // Benefits
   benefitTypes    BenefitType[]
   employeeBenefits EmployeeBenefit[]
+
+  // HR movements & disciplinary
+  staffMovements      StaffMovement[]
+  disciplinaryRecords DisciplinaryRecord[]
 }
 
 model TenantUser {
@@ -1141,6 +1145,8 @@ model Employee {
   qrCodes           EmployeeQRCode[]
   benefits          EmployeeBenefit[]
   hiredApplications Application[]     @relation("HiredEmployee")
+  staffMovements    StaffMovement[]
+  disciplinaryRecords DisciplinaryRecord[]
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -2197,4 +2203,73 @@ model EmployeeBenefit {
   @@unique([employeeId, benefitTypeId])
   @@index([tenantId, employeeId])
   @@index([benefitTypeId])
+}
+
+// --- Staff Movements (Promotion / Demotion / Transfer) ---
+
+model StaffMovement {
+  id            String   @id @default(cuid())
+  tenantId      String
+  employeeId    String
+
+  // promotion | demotion | lateral | department_transfer | role_change
+  movementType  String
+
+  // Old values (snapshot at time of movement)
+  oldJobTitle   String?
+  oldDepartment String?
+  oldUnit       String?
+  oldBasicSalary Decimal? @db.Decimal(12, 2)
+  oldGrade      String?
+
+  // New values
+  newJobTitle   String?
+  newDepartment String?
+  newUnit       String?
+  newBasicSalary Decimal? @db.Decimal(12, 2)
+  newGrade      String?
+
+  effectiveDate DateTime
+  reason        String?  @db.Text
+  // proposed | approved | rejected
+  status        String   @default("approved")
+  approvedById  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@index([tenantId, movementType])
+}
+
+// --- Disciplinary Records ---
+
+model DisciplinaryRecord {
+  id           String   @id @default(cuid())
+  tenantId     String
+  employeeId   String
+
+  // verbal_warning | written_warning | final_written_warning | suspension | termination
+  actionType   String
+  incidentDate DateTime
+  incidentDescription String @db.Text
+  actionTaken  String?  @db.Text
+  issuedById   String?
+
+  // pending | acknowledged | appealed | closed
+  status       String   @default("pending")
+  employeeAcknowledgement Boolean @default(false)
+  appealNotes  String?  @db.Text
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@index([tenantId, actionType])
 }

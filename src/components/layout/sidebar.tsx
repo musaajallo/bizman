@@ -86,6 +86,7 @@ import {
   Boxes,
   ScrollText,
   FileMinus,
+  ArrowUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/lib/stores/preferences-store";
@@ -193,6 +194,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Overtime", href: "/africs/hr/overtime", icon: AlarmClock, description: "Overtime tracking and approvals" },
           { label: "Attendance", href: "/africs/hr/attendance", icon: Clock, description: "Shifts, clock-in records and daily logs" },
           { label: "Benefits", href: "/africs/hr/benefits", icon: HandCoins, description: "Employee benefit types and assignments" },
+          { label: "Movements", href: "/africs/hr/movements", icon: ArrowUpDown, description: "Promotions, demotions, transfers and disciplinary" },
           { label: "Talent Pool", href: "/africs/hr/talent-pool", icon: UsersRound, description: "Candidate database and expressions of interest" },
           { label: "Referrals", href: "/africs/hr/referrals", icon: UserRoundPlus, description: "Employee referral programs" },
         ],

@@ -152,6 +152,47 @@ Last updated: 2026-03-24
 - [ ] Invoice notifications (in-app + email on send, view, payment)
 - [ ] Billable services list — track which services generate revenue
 
+### Chart of Accounts — NOT STARTED 🔲
+> Foundation for double-entry bookkeeping and financial statements. All transactions (invoices, bills, payroll, expenses, loans) post to accounts.
+- [ ] Prisma models: Account, AccountType
+- [ ] Account types: Asset, Liability, Equity, Revenue, Expense
+- [ ] Pre-seeded default chart of accounts (receivables, payables, cash, revenue, COGS, salaries, etc.)
+- [ ] Custom accounts: add/edit/deactivate, assign parent for sub-accounts
+- [ ] Account codes (e.g. 1000 Cash, 2000 Accounts Payable)
+- [ ] Link existing transactions: invoices → AR, bills → AP, payroll → salary expense, expenses → expense accounts
+- [ ] Account detail view: running balance, transaction history
+
+### Expense Categories — NOT STARTED 🔲
+> Structured tagging for all outgoing spend — replaces free-text categories on expenses and bills.
+- [ ] Prisma models: ExpenseCategory (name, code, parentId, chartOfAccountsLink, isActive)
+- [ ] Hierarchical categories (e.g. Operating Expenses → Travel → Flights)
+- [ ] Pre-seeded common categories
+- [ ] Link to Chart of Accounts (each category maps to an expense account)
+- [ ] Apply categories to: Expense records, Bill line items, Purchase Order line items
+- [ ] Category spend report: total spend per category for any date range
+
+### Loans — NOT STARTED 🔲
+> Track money the company lends to staff or owners (salary advances, personal loans). Distinct from bills and expenses.
+- [ ] Prisma models: Loan, LoanRepayment
+- [ ] Loan types: staff loan, owner/director loan, salary advance
+- [ ] Loan lifecycle: applied → approved → disbursed → active → settled / defaulted / written off
+- [ ] Per-loan: borrower (Employee or Tenant owner), principal, interest rate, repayment schedule (monthly/weekly/lump sum), disbursement date
+- [ ] Repayment log: record each repayment (amount, date, method), auto-update outstanding balance
+- [ ] Payroll deduction: flag a loan for automatic repayment deduction during payroll run
+- [ ] Loan summary dashboard: total outstanding, repayments this month, overdue loans
+- [ ] Link to Chart of Accounts (loans receivable account)
+
+### Budgets — NOT STARTED 🔲
+> Plan and monitor spend across departments and units. Compare actuals (from expenses, bills, payroll) against budget lines.
+- [ ] Prisma models: Budget, BudgetLine
+- [ ] Budget period: annual or custom date range, name (e.g. "FY2026 Operations Budget")
+- [ ] Budget lines: per department, per unit, per expense category — allocated amount, currency
+- [ ] Actuals auto-pulled from: Expense records, Bill amounts, Payroll runs — filtered by department/unit
+- [ ] Variance view: allocated vs. actual vs. remaining, % used, over/under budget flag
+- [ ] Budget approval flow: draft → submitted → approved
+- [ ] Department heads can view their own budget lines (scoped access)
+- [ ] Export budget report (PDF + CSV)
+
 ### Procurement (Internal Buying) — DONE ✅
 > Staff raise purchase requests internally. Manager approves, PO is issued to supplier, goods/services received, bill recorded.
 - [x] Prisma models: Vendor, PurchaseRequisition, PurchaseRequisitionItem, PurchaseOrder, PurchaseOrderItem, GoodsReceipt, GoodsReceiptItem, ProcurementSettings
@@ -325,11 +366,15 @@ Last updated: 2026-03-24
 - [x] Assign benefits per employee or grade (via employee profile)
 - [ ] Payroll integration (benefits as deductions/additions)
 
-### Promotion & Disciplinary Flows — NOT STARTED 🔲
-- [ ] Prisma models: PromotionRecord, DisciplinaryRecord, DisciplinaryNotice
-- [ ] Promotion workflow (propose → HR review → approved → update employee grade)
-- [ ] Disciplinary workflow (verbal → written → final warning → termination)
-- [ ] Notice generation (PDF)
+### Promotion, Demotion & Disciplinary — NOT STARTED 🔲
+- [ ] Prisma models: StaffMovement (covers promotion/demotion/transfer), DisciplinaryRecord, DisciplinaryNotice
+- [ ] Movement types: promotion, demotion, lateral transfer, department transfer, role change
+- [ ] Promotion/demotion workflow: propose (with new title + salary) → HR review → approved → auto-updates employee record (job title, salary, grade)
+- [ ] Department & unit transfer: record old dept/unit → new dept/unit, effective date, reason — full history on employee profile
+- [ ] Movement history tab on employee profile (all promotions, demotions, transfers in chronological order)
+- [ ] Disciplinary workflow: verbal warning → written warning → final written warning → termination
+- [ ] Disciplinary record: incident date, description, action taken, issued by, employee acknowledgement
+- [ ] Notice generation (PDF): promotion letter, demotion notice, warning letter, termination notice
 
 ### Health & Safety — NOT STARTED 🔲
 - [ ] Prisma models: IncidentReport, SafetyAudit
