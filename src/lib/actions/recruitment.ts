@@ -187,6 +187,7 @@ export async function getApplicationById(id: string) {
     include: {
       jobPosting: true,
       talentPoolEntry: { select: { id: true, name: true, email: true, phone: true, linkedInUrl: true, skills: true, experienceLevel: true } },
+      hiredEmployee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true } },
     },
   });
   if (!a) return null;
@@ -323,4 +324,33 @@ export async function getRecruitmentStats() {
     totalApplications: stageGroups.reduce((s, r) => s + r._count, 0),
     byStage,
   };
+}
+
+// ── Hire Link ─────────────────────────────────────────────────────────────────
+
+export async function linkApplicationToEmployee(applicationId: string, employeeId: string) {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "Not found" };
+
+  const a = await prisma.application.update({
+    where: { id: applicationId, tenantId: owner.id },
+    data: { hiredEmployeeId: employeeId, stage: "hired" },
+  });
+
+  revalidatePath(`/africs/hr/recruitment/applications/${applicationId}`);
+  revalidatePath(`/africs/hr/recruitment/postings/${a.jobPostingId}`);
+  return { success: true };
+}
+
+export async function unlinkApplicationEmployee(applicationId: string) {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "Not found" };
+
+  await prisma.application.update({
+    where: { id: applicationId, tenantId: owner.id },
+    data: { hiredEmployeeId: null },
+  });
+
+  revalidatePath(`/africs/hr/recruitment/applications/${applicationId}`);
+  return { success: true };
 }

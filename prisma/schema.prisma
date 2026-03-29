@@ -220,6 +220,14 @@ model Tenant {
   // Appraisals
   appraisalCycles AppraisalCycle[]
   appraisals      Appraisal[]
+
+  // Time & Attendance
+  attendanceDevices AttendanceDevice[]
+  shifts            Shift[]
+
+  // Benefits
+  benefitTypes    BenefitType[]
+  employeeBenefits EmployeeBenefit[]
 }
 
 model TenantUser {
@@ -1127,6 +1135,12 @@ model Employee {
   assetAssignments  AssetAssignment[]
   referrals         Referral[]
   appraisals        Appraisal[]
+  shiftAssignments  ShiftAssignment[]
+  attendanceRecords AttendanceRecord[]
+  attendanceLogs    AttendanceLog[]
+  qrCodes           EmployeeQRCode[]
+  benefits          EmployeeBenefit[]
+  hiredApplications Application[]     @relation("HiredEmployee")
 
   @@unique([tenantId, employeeNumber])
   @@index([tenantId, status])
@@ -1897,10 +1911,12 @@ model Application {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   jobPosting      JobPosting       @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
   talentPoolEntry TalentPoolEntry? @relation(fields: [talentPoolEntryId], references: [id], onDelete: SetNull)
+  hiredEmployee   Employee?        @relation("HiredEmployee", fields: [hiredEmployeeId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, stage])
   @@index([jobPostingId, stage])
   @@index([talentPoolEntryId])
+  @@index([hiredEmployeeId])
 }
 
 // ─── Referrals ────────────────────────────────────────────────────────────────
@@ -2008,4 +2024,177 @@ model AppraisalGoal {
   appraisal Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
 
   @@index([appraisalId])
+}
+
+// ─── Time & Attendance ────────────────────────────────────────────────────────
+
+model AttendanceDevice {
+  id            String    @id @default(cuid())
+  tenantId      String
+  name          String
+  type          String    // zkteco | qr_kiosk | webhook | manual
+  serialNumber  String?
+  location      String?
+  apiKey        String    @unique @default(cuid())
+  isActive      Boolean   @default(true)
+  lastHeartbeat DateTime?
+  lastSyncAt    DateTime?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+
+  @@index([tenantId])
+}
+
+model AttendanceRecord {
+  id             String    @id @default(cuid())
+  tenantId       String
+  employeeId     String
+  deviceId       String?
+  type           String    // clock_in | clock_out | break_start | break_end
+  method         String    // qr | fingerprint | face | card | manual
+  timestamp      DateTime
+  source         String    // zkteco | qr_kiosk | webhook | manual
+  isManual       Boolean   @default(false)
+  overriddenById String?
+  note           String?
+  raw            Json?
+  createdAt      DateTime  @default(now())
+
+  employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   AttendanceDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, employeeId, timestamp])
+  @@index([tenantId, timestamp])
+}
+
+model AttendanceLog {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  employeeId            String
+  date                  DateTime  @db.Date
+  status                String    @default("unresolved")
+  // present | absent | half_day | leave | holiday | weekend | unresolved
+  shiftId               String?
+  scheduledStart        DateTime?
+  scheduledEnd          DateTime?
+  actualClockIn         DateTime?
+  actualClockOut        DateTime?
+  hoursWorked           Decimal?  @db.Decimal(5, 2)
+  lateMinutes           Int       @default(0)
+  earlyDepartureMinutes Int       @default(0)
+  overtimeMinutes       Int       @default(0)
+  breakMinutes          Int       @default(0)
+  isPublicHoliday       Boolean   @default(false)
+  notes                 String?
+  processedAt           DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, date])
+  @@index([tenantId, date])
+}
+
+model Shift {
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  type             String   @default("fixed") // fixed | flexi | open
+  startTime        String   // "08:00" (24hr)
+  endTime          String   // "17:00"
+  breakMinutes     Int      @default(60)
+  gracePeriodMins  Int      @default(15)
+  overtimeAfterMins Int     @default(0)
+  workDays         String[]  // ["mon","tue","wed","thu","fri"]
+  isDefault        Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments ShiftAssignment[]
+  logs        AttendanceLog[]
+
+  @@index([tenantId])
+}
+
+model ShiftAssignment {
+  id            String    @id @default(cuid())
+  tenantId      String
+  shiftId       String
+  employeeId    String?
+  department    String?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+
+  shift    Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@index([shiftId])
+}
+
+model EmployeeQRCode {
+  id         String    @id @default(cuid())
+  tenantId   String
+  employeeId String
+  code       String    @unique @default(cuid())
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([code])
+}
+
+// ─── Benefits Management ──────────────────────────────────────────────────────
+
+model BenefitType {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  category     String   @default("other") // medical, pension, allowance, insurance, loan, other
+  valueType    String   @default("fixed")  // fixed, percentage
+  defaultValue Decimal? @db.Decimal(12, 2)
+  currency     String   @default("USD")
+  description  String?  @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  benefits EmployeeBenefit[]
+
+  @@index([tenantId])
+}
+
+model EmployeeBenefit {
+  id            String    @id @default(cuid())
+  tenantId      String
+  employeeId    String
+  benefitTypeId String
+  overrideValue Decimal?  @db.Decimal(12, 2)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  benefitType BenefitType @relation(fields: [benefitTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, benefitTypeId])
+  @@index([tenantId, employeeId])
+  @@index([benefitTypeId])
 }

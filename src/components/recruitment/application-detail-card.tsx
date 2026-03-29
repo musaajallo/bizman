@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { moveApplicationStage, rateApplication, addApplicationNote, rejectApplication } from "@/lib/actions/recruitment";
-import { Mail, Phone, Linkedin, ExternalLink, Star } from "lucide-react";
+import { moveApplicationStage, rateApplication, addApplicationNote, rejectApplication, linkApplicationToEmployee, unlinkApplicationEmployee } from "@/lib/actions/recruitment";
+import { Mail, Phone, Linkedin, ExternalLink, Star, UserCheck, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import Link from "next/link";
 
 const STAGES = [
@@ -28,6 +29,8 @@ const STAGE_STYLES: Record<string, string> = {
   rejected: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
 };
 
+interface Employee { id: string; firstName: string; lastName: string; employeeNumber: string; }
+
 interface Props {
   application: {
     id: string;
@@ -40,6 +43,8 @@ interface Props {
     rating: number | null;
     notes: string | null;
     rejectionReason: string | null;
+    hiredEmployeeId: string | null;
+    hiredEmployee: { id: string; firstName: string; lastName: string; employeeNumber: string } | null;
     createdAt: string;
     jobPosting: { id: string; title: string; department: string | null };
     talentPoolEntry: {
@@ -47,9 +52,10 @@ interface Props {
       linkedInUrl: string | null; skills: string[]; experienceLevel: string | null;
     } | null;
   };
+  employees?: Employee[];
 }
 
-export function ApplicationDetailCard({ application }: Props) {
+export function ApplicationDetailCard({ application, employees = [] }: Props) {
   const [isPending, startTransition] = useTransition();
   const [stage, setStage] = useState(application.stage);
   const [rating, setRating] = useState(application.rating ?? 0);
@@ -57,6 +63,9 @@ export function ApplicationDetailCard({ application }: Props) {
   const [notesSaved, setNotesSaved] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [linkedEmployee, setLinkedEmployee] = useState(application.hiredEmployee);
 
   function handleStageChange(val: string) {
     setStage(val);
@@ -81,6 +90,24 @@ export function ApplicationDetailCard({ application }: Props) {
       await rejectApplication(application.id, rejectReason || undefined);
       setStage("rejected");
       setShowRejectForm(false);
+    });
+  }
+
+  function handleLinkEmployee() {
+    if (!selectedEmployeeId) return;
+    const emp = employees.find((e) => e.id === selectedEmployeeId) ?? null;
+    startTransition(async () => {
+      await linkApplicationToEmployee(application.id, selectedEmployeeId);
+      setLinkedEmployee(emp);
+      setStage("hired");
+      setLinkOpen(false);
+    });
+  }
+
+  function handleUnlink() {
+    startTransition(async () => {
+      await unlinkApplicationEmployee(application.id);
+      setLinkedEmployee(null);
     });
   }
 
@@ -237,11 +264,57 @@ export function ApplicationDetailCard({ application }: Props) {
             </p>
           )}
 
+          {/* Employee link */}
+          {(stage === "hired" || linkedEmployee) && (
+            <>
+              <Separator />
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Linked Employee Record</p>
+                {linkedEmployee ? (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-3 py-2">
+                    <UserCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-sm font-medium flex-1">{linkedEmployee.firstName} {linkedEmployee.lastName}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{linkedEmployee.employeeNumber}</span>
+                    <Link href={`/africs/hr/employees/${linkedEmployee.id}`} className="text-xs text-primary hover:underline ml-2">View →</Link>
+                    <button onClick={handleUnlink} disabled={isPending} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" className="gap-2 text-xs" onClick={() => setLinkOpen(true)} disabled={isPending}>
+                    <UserCheck className="h-3.5 w-3.5" />Link to Employee Record
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+
           <p className="text-xs text-muted-foreground">
             Applied {new Date(application.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}
           </p>
         </CardContent>
       </Card>
+
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Link to Employee</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Select the employee record created for this hire.</p>
+          <Select value={selectedEmployeeId} onValueChange={(v: string | null) => { if (v) setSelectedEmployeeId(v); }}>
+            <SelectTrigger><SelectValue placeholder="Select employee..." /></SelectTrigger>
+            <SelectContent>
+              {employees.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.firstName} {e.lastName} · {e.employeeNumber}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLinkOpen(false)}>Cancel</Button>
+            <Button onClick={handleLinkEmployee} disabled={!selectedEmployeeId || isPending}>Link</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

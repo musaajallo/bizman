@@ -307,7 +307,7 @@ Last updated: 2026-03-24
 - [x] Applicant pipeline (applied → screening → interview → offer → hired / rejected)
 - [x] Kanban board per posting with drag-to-stage
 - [x] Application detail page (rate, notes, reject, move stage)
-- [ ] Link hired applicant to Employee record
+- [x] Link hired applicant to Employee record
 
 ### Appraisals — DONE ✅
 - [x] Prisma models: AppraisalCycle, Appraisal, AppraisalRating, AppraisalGoal
@@ -319,10 +319,10 @@ Last updated: 2026-03-24
 - [x] Avg rating stats on dashboard
 - [ ] Link to promotion/disciplinary flows
 
-### Benefits Management — NOT STARTED 🔲
-- [ ] Prisma models: BenefitType, EmployeeBenefit
-- [ ] Define benefit types (medical, pension, transport allowance, etc.)
-- [ ] Assign benefits per employee or grade
+### Benefits Management — DONE ✅
+- [x] Prisma models: BenefitType, EmployeeBenefit
+- [x] Define benefit types (medical, pension, transport allowance, etc.)
+- [x] Assign benefits per employee or grade (via employee profile)
 - [ ] Payroll integration (benefits as deductions/additions)
 
 ### Promotion & Disciplinary Flows — NOT STARTED 🔲
