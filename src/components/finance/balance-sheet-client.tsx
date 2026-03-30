@@ -43,16 +43,20 @@ export function BalanceSheetClient({ data, asOf }: Props) {
               <Input id="asOf" name="asOf" type="date" defaultValue={asOf} className="h-8 text-sm w-40" />
             </div>
             <Button type="submit" size="sm">Apply</Button>
-            <a
-              href={`/api/finance/balance-sheet/pdf?asOf=${asOf}`}
-              download
-              className="ml-auto"
-            >
-              <Button type="button" variant="outline" size="sm" className="gap-1.5">
-                <Download className="h-3.5 w-3.5" />
-                PDF
-              </Button>
-            </a>
+            <div className="ml-auto flex gap-2">
+              <a href={`/api/finance/balance-sheet/csv?asOf=${asOf}`} download>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  CSV
+                </Button>
+              </a>
+              <a href={`/api/finance/balance-sheet/pdf?asOf=${asOf}`} download>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>
