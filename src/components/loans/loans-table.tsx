@@ -16,12 +16,13 @@ import Link from "next/link";
 import { deleteLoan, updateLoanStatus } from "@/lib/actions/loans";
 
 const STATUS_STYLES: Record<string, string> = {
-  applied: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
-  approved: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  disbursed: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  settled: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  defaulted: "bg-red-500/10 text-red-400 border-red-500/20",
+  applied:     "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  approved:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  rejected:    "bg-red-500/10 text-red-400 border-red-500/20",
+  disbursed:   "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  active:      "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  settled:     "bg-teal-500/10 text-teal-400 border-teal-500/20",
+  defaulted:   "bg-red-500/10 text-red-400 border-red-500/20",
   written_off: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
 };
 

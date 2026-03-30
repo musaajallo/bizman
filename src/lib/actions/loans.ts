@@ -12,11 +12,13 @@ function toNum(d: unknown): number {
 
 function serializeLoan(l: {
   id: string; tenantId: string; loanType: string; loanNumber: string;
-  employeeId: string | null; borrowerName: string;
+  employeeId: string | null; borrowerName: string; purpose: string | null;
   principal: unknown; interestRate: unknown; currency: string;
   repaymentSchedule: string; repaymentAmount: unknown;
   disbursementDate: Date | null; status: string;
   payrollDeduction: boolean; notes: string | null;
+  approvedByName: string | null; approvedAt: Date | null;
+  rejectedByName: string | null; rejectedAt: Date | null; rejectionReason: string | null;
   createdAt: Date; updatedAt: Date;
 }) {
   return {
@@ -25,6 +27,8 @@ function serializeLoan(l: {
     interestRate: toNum(l.interestRate),
     repaymentAmount: l.repaymentAmount != null ? toNum(l.repaymentAmount) : null,
     disbursementDate: l.disbursementDate?.toISOString() ?? null,
+    approvedAt: l.approvedAt?.toISOString() ?? null,
+    rejectedAt: l.rejectedAt?.toISOString() ?? null,
     createdAt: l.createdAt.toISOString(),
     updatedAt: l.updatedAt.toISOString(),
   };
@@ -109,15 +113,15 @@ export async function createLoan(formData: FormData) {
       loanType: formData.get("loanType") as string,
       employeeId: (formData.get("employeeId") as string) || null,
       borrowerName: formData.get("borrowerName") as string,
+      purpose: (formData.get("purpose") as string) || null,
       principal: parseFloat(formData.get("principal") as string),
       interestRate: formData.get("interestRate") ? parseFloat(formData.get("interestRate") as string) : 0,
       currency: (formData.get("currency") as string) || "GMD",
       repaymentSchedule: (formData.get("repaymentSchedule") as string) || "monthly",
       repaymentAmount: formData.get("repaymentAmount") ? parseFloat(formData.get("repaymentAmount") as string) : null,
-      disbursementDate: formData.get("disbursementDate") ? new Date(formData.get("disbursementDate") as string) : null,
       payrollDeduction: formData.get("payrollDeduction") === "true",
       notes: (formData.get("notes") as string) || null,
-      status: "approved",
+      status: "applied",
     },
   });
 
@@ -154,6 +158,54 @@ export async function updateLoanStatus(id: string, status: string) {
         });
       }
     }
+  });
+
+  revalidatePath("/africs/accounting/loans");
+  revalidatePath(`/africs/accounting/loans/${id}`);
+  return { success: true };
+}
+
+export async function approveLoan(id: string, approverName: string) {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "Not found" };
+
+  const loan = await prisma.loan.findFirst({ where: { id, tenantId: owner.id } });
+  if (!loan) return { error: "Not found" };
+  if (loan.status !== "applied") return { error: "Only pending applications can be approved" };
+
+  await prisma.loan.update({
+    where: { id },
+    data: {
+      status: "approved",
+      approvedByName: approverName,
+      approvedAt: new Date(),
+      rejectedByName: null,
+      rejectedAt: null,
+      rejectionReason: null,
+    },
+  });
+
+  revalidatePath("/africs/accounting/loans");
+  revalidatePath(`/africs/accounting/loans/${id}`);
+  return { success: true };
+}
+
+export async function rejectLoan(id: string, approverName: string, reason: string) {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "Not found" };
+
+  const loan = await prisma.loan.findFirst({ where: { id, tenantId: owner.id } });
+  if (!loan) return { error: "Not found" };
+  if (loan.status !== "applied") return { error: "Only pending applications can be rejected" };
+
+  await prisma.loan.update({
+    where: { id },
+    data: {
+      status: "rejected",
+      rejectedByName: approverName,
+      rejectedAt: new Date(),
+      rejectionReason: reason || null,
+    },
   });
 
   revalidatePath("/africs/accounting/loans");

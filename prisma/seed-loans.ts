@@ -272,7 +272,7 @@ async function main() {
         repaymentAmount:   l.repaymentAmount ?? null,
         disbursementDate:  l.disbursementDate ?? null,
         status:            l.status,
-        payrollDeduction:  l.payrollDeduction ?? false,
+        payrollDeduction:  (l as { payrollDeduction?: boolean }).payrollDeduction ?? false,
         notes:             l.notes ?? null,
       },
     });
@@ -296,7 +296,7 @@ async function main() {
     for (let i = 0; i < count; i++) {
       const paidAt = d(startYear, startMonth + i, 5);
       await prisma.loanRepayment.create({
-        data: { loanId, tenantId: tenant.id, amount, method, paidAt },
+        data: { loanId, tenantId: tenant!.id, amount, method, paidAt },
       });
     }
   }

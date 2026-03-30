@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Info } from "lucide-react";
 import { createLoan } from "@/lib/actions/loans";
 
 const LOAN_TYPES = [
@@ -29,10 +32,16 @@ interface Employee {
   employeeNumber: string;
 }
 
-export function LoanForm({ employees }: { employees: Employee[] }) {
+interface Props {
+  employees: Employee[];
+  requireApproval?: boolean;
+}
+
+export function LoanForm({ employees, requireApproval = true }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loanType, setLoanType] = useState("staff_loan");
+  const [repaymentSchedule, setRepaymentSchedule] = useState("monthly");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [payrollDeduction, setPayrollDeduction] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +56,7 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
     const form = e.currentTarget;
     const fd = new FormData(form);
     fd.set("loanType", loanType);
+    fd.set("repaymentSchedule", repaymentSchedule);
     fd.set("payrollDeduction", payrollDeduction ? "true" : "false");
 
     if (isStaff) {
@@ -66,6 +76,23 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
+      {/* Approval notice */}
+      <Card className="border-dashed">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-2 text-sm">
+            <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+            <p className="text-muted-foreground">
+              {requireApproval
+                ? "This application will be submitted for review. An approver will need to approve it before disbursement."
+                : "Approval is not required — this application will be automatically approved on submission."}
+            </p>
+            <Badge variant="outline" className="ml-auto shrink-0 text-xs">
+              {requireApproval ? "Requires approval" : "Auto-approved"}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Loan Type</Label>
@@ -85,7 +112,7 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
 
       {isStaff ? (
         <div className="space-y-1.5">
-          <Label>Employee</Label>
+          <Label>Employee <span className="text-destructive">*</span></Label>
           <Select value={selectedEmployeeId} onValueChange={(v: string | null) => { if (v) setSelectedEmployeeId(v); }}>
             <SelectTrigger><SelectValue placeholder="Select employee..." /></SelectTrigger>
             <SelectContent>
@@ -99,26 +126,38 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
         </div>
       ) : (
         <div className="space-y-1.5">
-          <Label htmlFor="borrowerName">Borrower Name</Label>
+          <Label htmlFor="borrowerName">Borrower Name <span className="text-destructive">*</span></Label>
           <Input id="borrowerName" name="borrowerName" placeholder="Director / owner name" required />
         </div>
       )}
 
+      {/* Purpose — required for applications */}
+      <div className="space-y-1.5">
+        <Label htmlFor="purpose">Purpose / Reason <span className="text-destructive">*</span></Label>
+        <Textarea
+          id="purpose"
+          name="purpose"
+          rows={3}
+          required
+          placeholder="Explain the reason for this loan or salary advance..."
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="principal">Principal Amount <span className="text-destructive">*</span></Label>
+          <Label htmlFor="principal">Amount Requested <span className="text-destructive">*</span></Label>
           <Input id="principal" name="principal" type="number" step="0.01" min="0" required placeholder="0.00" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="interestRate">Interest Rate (%)</Label>
-          <Input id="interestRate" name="interestRate" type="number" step="0.01" min="0" placeholder="0.00" />
+          <Input id="interestRate" name="interestRate" type="number" step="0.01" min="0" placeholder="0.00 (leave blank for 0%)" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Repayment Schedule</Label>
-          <Select defaultValue="monthly" name="repaymentSchedule" onValueChange={(_v: string | null) => {}}>
+          <Select value={repaymentSchedule} onValueChange={(v: string | null) => { if (v) setRepaymentSchedule(v); }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {SCHEDULES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
@@ -131,11 +170,6 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
         </div>
       </div>
 
-      <div className="space-y-1.5 max-w-xs">
-        <Label htmlFor="disbursementDate">Disbursement Date</Label>
-        <Input id="disbursementDate" name="disbursementDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-      </div>
-
       {isStaff && (
         <div className="flex items-center gap-2">
           <Checkbox id="payrollDeduction" checked={payrollDeduction} onCheckedChange={(v) => setPayrollDeduction(!!v)} />
@@ -146,15 +180,15 @@ export function LoanForm({ employees }: { employees: Employee[] }) {
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea id="notes" name="notes" rows={3} placeholder="Purpose or additional details..." />
+        <Label htmlFor="notes">Additional Notes</Label>
+        <Textarea id="notes" name="notes" rows={2} placeholder="Any other relevant information..." />
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex gap-3">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Create Loan"}
+          {isPending ? "Submitting..." : "Submit Application"}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
       </div>

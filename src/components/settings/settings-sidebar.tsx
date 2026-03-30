@@ -31,6 +31,7 @@ import {
   Server,
   AlarmClock,
   Umbrella,
+  Banknote,
 } from "lucide-react";
 
 const SETTINGS_NAV = [
@@ -63,6 +64,7 @@ const SETTINGS_NAV = [
     items: [
       { label: "Leave Policy", href: "/africs/settings/hr/leave", icon: Umbrella },
       { label: "Overtime", href: "/africs/settings/hr/overtime", icon: AlarmClock },
+      { label: "Loans", href: "/africs/settings/hr/loans", icon: Banknote },
     ],
   },
   {

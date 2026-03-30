@@ -236,6 +236,7 @@ model Tenant {
   // Loans
   loans              Loan[]
   loanRepayments     LoanRepayment[]
+  loanSettings       LoanSettings?
 
   // Budgets
   budgets            Budget[]
@@ -2302,6 +2303,8 @@ model Loan {
   employeeId      String?
   borrowerName    String    // denormalized for display
 
+  purpose         String?   @db.Text
+
   principal       Decimal   @db.Decimal(12, 2)
   interestRate    Decimal   @db.Decimal(5, 2) @default(0)
   currency        String    @default("GMD")
@@ -2311,10 +2314,17 @@ model Loan {
   repaymentAmount   Decimal? @db.Decimal(12, 2)
   disbursementDate  DateTime?
 
-  // applied | approved | disbursed | active | settled | defaulted | written_off
+  // applied | approved | rejected | disbursed | active | settled | defaulted | written_off
   status          String    @default("applied")
   payrollDeduction Boolean  @default(false)
   notes           String?   @db.Text
+
+  // Approval / rejection metadata
+  approvedByName    String?
+  approvedAt        DateTime?
+  rejectedByName    String?
+  rejectedAt        DateTime?
+  rejectionReason   String?   @db.Text
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -2346,6 +2356,18 @@ model LoanRepayment {
 
   @@index([loanId])
   @@index([tenantId])
+}
+
+model LoanSettings {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  requireApproval Boolean  @default(true)
+  // user IDs of people who can approve loans
+  approverIds     String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // --- Budgets ---
