@@ -1,21 +1,28 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
+import { getIncomeStatement } from "@/lib/actions/accounting/statements";
+import { IncomeStatementClient } from "@/components/finance/income-statement-client";
 
-export default function PlPage() {
+export default async function PlPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
+
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const defaultTo   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+
+  const fromDate = from ?? defaultFrom;
+  const toDate   = to   ?? defaultTo;
+
+  const data = await getIncomeStatement(new Date(fromDate), new Date(toDate));
+
   return (
     <div>
       <TopBar title="Profit & Loss" subtitle="Income and expense statement for any period" />
       <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <TrendingUp className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium mb-1">Profit & Loss</p>
-            <p className="text-xs text-muted-foreground max-w-xs">Income and expense statement for any period. Coming soon.</p>
-          </CardContent>
-        </Card>
+        <IncomeStatementClient data={data} from={fromDate} to={toDate} />
       </div>
     </div>
   );

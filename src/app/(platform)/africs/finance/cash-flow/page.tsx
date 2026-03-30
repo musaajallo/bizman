@@ -1,21 +1,28 @@
 import { TopBar } from "@/components/layout/top-bar";
-import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
+import { getCashFlowStatement } from "@/lib/actions/accounting/statements";
+import { CashFlowClient } from "@/components/finance/cash-flow-client";
 
-export default function CashFlowPage() {
+export default async function CashFlowPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
+
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const defaultTo   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+
+  const fromDate = from ?? defaultFrom;
+  const toDate   = to   ?? defaultTo;
+
+  const data = await getCashFlowStatement(new Date(fromDate), new Date(toDate));
+
   return (
     <div>
-      <TopBar title="Cash Flow" subtitle="Cash inflows and outflows over time" />
+      <TopBar title="Cash Flow" subtitle="Cash inflows and outflows (indirect method)" />
       <div className="p-6">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
-              <TrendingUp className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium mb-1">Cash Flow</p>
-            <p className="text-xs text-muted-foreground max-w-xs">Cash inflows and outflows over time. Coming soon.</p>
-          </CardContent>
-        </Card>
+        <CashFlowClient data={data} from={fromDate} to={toDate} />
       </div>
     </div>
   );
