@@ -185,7 +185,7 @@ Last updated: 2026-03-24
   - [ ] Asset purchased → Debit 1500 PP&E / Credit 1000 Cash
   - [ ] Depreciation posted → Debit 6500 Depreciation / Credit 1510 Accum. Depr.
 - [x] Journal entry list view: filterable by period and source type, expandable rows
-- [ ] Manual journal entries form (inline debit/credit lines, balanced validation)
+- [x] Manual journal entries form (inline debit/credit lines, balanced validation)
 
 ### Accounting Periods — DONE ✅
 - [x] Prisma model: AccountingPeriod (tenantId, name, startDate, endDate, status, fiscalYear)

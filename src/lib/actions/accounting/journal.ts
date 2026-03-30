@@ -242,6 +242,65 @@ export async function getTrialBalance(tenantId: string, asOf: Date) {
   return { rows, totalDebits, totalCredits, balanced: Math.abs(totalDebits - totalCredits) < 0.01 };
 }
 
+// ── Manual journal entry ──────────────────────────────────────────────────────
+
+export interface ManualEntryLine {
+  accountId: string;
+  debit: number;
+  credit: number;
+  description?: string;
+}
+
+export async function createManualJournalEntry(input: {
+  date: string;
+  description: string;
+  reference?: string;
+  lines: ManualEntryLine[];
+}): Promise<{ success?: boolean; error?: string; id?: string }> {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "No business found" };
+
+  if (!input.description?.trim()) return { error: "Description is required" };
+  if (input.lines.length < 2) return { error: "At least two lines required" };
+
+  const totalDebit  = input.lines.reduce((s, l) => s + (l.debit  ?? 0), 0);
+  const totalCredit = input.lines.reduce((s, l) => s + (l.credit ?? 0), 0);
+  if (Math.abs(totalDebit - totalCredit) > 0.005) {
+    return { error: `Entry is unbalanced: debits ${totalDebit.toFixed(2)} ≠ credits ${totalCredit.toFixed(2)}` };
+  }
+  if (totalDebit <= 0) return { error: "Entry total must be greater than zero" };
+
+  // Resolve account IDs → codes for postJournalEntry
+  const accounts = await prisma.ledgerAccount.findMany({
+    where: { tenantId: owner.id, id: { in: input.lines.map((l) => l.accountId) }, isActive: true },
+    select: { id: true, code: true },
+  });
+  const idToCode = Object.fromEntries(accounts.map((a) => [a.id, a.code]));
+
+  const lines: JournalLine[] = input.lines.map((l) => ({
+    accountCode: idToCode[l.accountId],
+    debit:       l.debit  > 0 ? l.debit  : undefined,
+    credit:      l.credit > 0 ? l.credit : undefined,
+    description: l.description?.trim() || undefined,
+  }));
+
+  const date = new Date(input.date);
+
+  try {
+    const entry = await postJournalEntry({
+      tenantId:    owner.id,
+      date,
+      description: input.description.trim(),
+      reference:   input.reference?.trim() || undefined,
+      sourceType:  "manual",
+      lines,
+    });
+    return { success: true, id: entry.id };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 // ── Owner-scoped convenience wrappers ────────────────────────────────────────
 
 export async function getOwnerJournalEntries(filters?: Parameters<typeof getJournalEntries>[1]) {
