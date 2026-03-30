@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAsset } from "@/lib/actions/assets";
+import { getAsset, getOpenPeriods } from "@/lib/actions/assets";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { prisma } from "@/lib/prisma";
 import { AssetDetailCard } from "@/components/assets/asset-detail-card";
@@ -11,6 +11,9 @@ import { AssetAssignmentTable } from "@/components/assets/asset-assignment-table
 import { AssetAssignDialog } from "@/components/assets/asset-assign-dialog";
 import { AssetMaintenanceTable } from "@/components/assets/asset-maintenance-table";
 import { AssetMaintenanceForm } from "@/components/assets/asset-maintenance-form";
+import { AssetDepreciationTable } from "@/components/assets/asset-depreciation-table";
+import { AssetRunDepreciationDialog } from "@/components/assets/asset-run-depreciation-dialog";
+import { AssetDisposeDialog } from "@/components/assets/asset-dispose-dialog";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -20,7 +23,11 @@ export default async function AssetDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [asset, owner] = await Promise.all([getAsset(id), getOwnerBusiness()]);
+  const [asset, owner, openPeriods] = await Promise.all([
+    getAsset(id),
+    getOwnerBusiness(),
+    getOpenPeriods(),
+  ]);
   if (!asset) notFound();
 
   const employees = owner
@@ -32,6 +39,12 @@ export default async function AssetDetailPage({
     : [];
 
   const hasActiveAssignment = asset.assignments.some((a: { returnedDate: string | null }) => !a.returnedDate);
+  const accumulatedDepreciation = asset.depreciationEntries.reduce(
+    (sum: number, e: { amount: number }) => sum + e.amount,
+    0,
+  );
+  const isDepreciable =
+    asset.depreciationMethod && asset.depreciationMethod !== "none" && asset.status !== "disposed";
 
   return (
     <div>
@@ -45,32 +58,62 @@ export default async function AssetDetailPage({
                 <ArrowLeft className="h-4 w-4" />Back
               </Button>
             </Link>
+            {asset.status !== "disposed" && (
+              <AssetDisposeDialog
+                assetId={asset.id}
+                assetNumber={asset.assetNumber}
+                currency={asset.currency}
+                cost={asset.purchasePrice}
+                accumulatedDepreciation={accumulatedDepreciation}
+              />
+            )}
             <AssetActions assetId={asset.id} hasActiveAssignment={hasActiveAssignment} />
           </div>
         }
       />
       <div className="p-6 max-w-4xl space-y-6">
-        <AssetDetailCard asset={asset} />
+        <AssetDetailCard asset={asset} accumulatedDepreciation={accumulatedDepreciation} />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Assignments</CardTitle>
-            <AssetAssignDialog assetId={asset.id} employees={employees} />
-          </CardHeader>
-          <CardContent>
-            <AssetAssignmentTable assetId={asset.id} assignments={asset.assignments} />
-          </CardContent>
-        </Card>
+        {/* Depreciation */}
+        {isDepreciable && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Depreciation History</CardTitle>
+              <AssetRunDepreciationDialog periods={openPeriods} />
+            </CardHeader>
+            <CardContent>
+              <AssetDepreciationTable
+                entries={asset.depreciationEntries}
+                currency={asset.currency}
+                cost={asset.purchasePrice}
+              />
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Maintenance</CardTitle>
-            <AssetMaintenanceForm assetId={asset.id} currency={asset.currency} />
-          </CardHeader>
-          <CardContent>
-            <AssetMaintenanceTable assetId={asset.id} records={asset.maintenance} />
-          </CardContent>
-        </Card>
+        {asset.status !== "disposed" && (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Assignments</CardTitle>
+                <AssetAssignDialog assetId={asset.id} employees={employees} />
+              </CardHeader>
+              <CardContent>
+                <AssetAssignmentTable assetId={asset.id} assignments={asset.assignments} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Maintenance</CardTitle>
+                <AssetMaintenanceForm assetId={asset.id} currency={asset.currency} />
+              </CardHeader>
+              <CardContent>
+                <AssetMaintenanceTable assetId={asset.id} records={asset.maintenance} />
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssetStatusBadge, AssetConditionBadge } from "./asset-status-badge";
 import { Separator } from "@/components/ui/separator";
-import { ASSET_CATEGORIES, DEPRECIATION_METHODS, calculateCurrentValue } from "@/lib/asset-constants";
+import { ASSET_CATEGORIES, DEPRECIATION_METHODS } from "@/lib/asset-constants";
 import Link from "next/link";
 
 interface Asset {
@@ -26,11 +26,14 @@ interface Asset {
   salvageValue: number;
   notes: string | null;
   purchaseOrder: { id: string; poNumber: string } | null;
+  disposedAt?: string | null;
+  disposalProceeds?: number;
+  disposalNotes?: string | null;
 }
 
-export function AssetDetailCard({ asset }: { asset: Asset }) {
+export function AssetDetailCard({ asset, accumulatedDepreciation = 0 }: { asset: Asset; accumulatedDepreciation?: number }) {
   const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  const computedValue = calculateCurrentValue(asset);
+  const bookValue = asset.purchasePrice - accumulatedDepreciation;
   const catLabel = ASSET_CATEGORIES[asset.category as keyof typeof ASSET_CATEGORIES]?.label ?? asset.category;
   const deprLabel = asset.depreciationMethod
     ? DEPRECIATION_METHODS[asset.depreciationMethod as keyof typeof DEPRECIATION_METHODS]?.label ?? asset.depreciationMethod
@@ -84,14 +87,32 @@ export function AssetDetailCard({ asset }: { asset: Asset }) {
           )}
           {asset.purchasePrice > 0 && (
             <div>
-              <dt className="text-xs text-muted-foreground">Purchase Price</dt>
+              <dt className="text-xs text-muted-foreground">Purchase Price (Cost)</dt>
               <dd className="font-medium mt-0.5">{asset.currency} {asset.purchasePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</dd>
             </div>
           )}
-          {computedValue !== asset.purchasePrice && (
+          {accumulatedDepreciation > 0 && (
             <div>
-              <dt className="text-xs text-muted-foreground">Current Value</dt>
-              <dd className="font-medium mt-0.5">{asset.currency} {computedValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</dd>
+              <dt className="text-xs text-muted-foreground">Accumulated Depreciation</dt>
+              <dd className="font-medium mt-0.5 text-amber-400">({asset.currency} {accumulatedDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</dd>
+            </div>
+          )}
+          {accumulatedDepreciation > 0 && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Book Value (Net)</dt>
+              <dd className="font-medium mt-0.5">{asset.currency} {Math.max(0, bookValue).toLocaleString(undefined, { minimumFractionDigits: 2 })}</dd>
+            </div>
+          )}
+          {asset.status === "disposed" && asset.disposedAt && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Disposed On</dt>
+              <dd className="font-medium mt-0.5 text-muted-foreground">{fmt(asset.disposedAt)}</dd>
+            </div>
+          )}
+          {asset.status === "disposed" && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Disposal Proceeds</dt>
+              <dd className="font-medium mt-0.5">{asset.currency} {(asset.disposalProceeds ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</dd>
             </div>
           )}
           {asset.warrantyExpiry && (

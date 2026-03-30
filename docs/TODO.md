@@ -306,21 +306,21 @@ Last updated: 2026-03-24
 - [ ] Unreconciled items > 90 days flagged for review
 - [ ] Export reconciliation statement as PDF
 
-### Assets — NOT STARTED 🔲
+### Assets — DONE ✅
 > Fixed asset register with depreciation, disposal, and automatic GL posting.
-- [ ] Prisma models: Asset (name, code, category, purchaseDate, cost, salvageValue, usefulLifeYears, depreciationMethod, linkedAccountId, status, tenantId), AssetDepreciationEntry (assetId, periodId, amount, journalEntryId), AssetAssignment (assetId, employeeId / departmentId / locationId), AssetMaintenance (assetId, date, cost, description)
-- [ ] Asset categories: Equipment | Furniture | Vehicles | IT | Intangibles
-- [ ] Depreciation methods:
-  - [ ] Straight-Line: `(Cost − Salvage) ÷ Useful Life in Years ÷ 12` per month
-  - [ ] Double-Declining-Balance: `Book Value × (2 ÷ Useful Life)`; switch to SL when SL gives higher charge
-  - [ ] Units of Activity: `(Cost − Salvage) ÷ Total Expected Units × Units Used in Period`
-- [ ] Cannot depreciate below salvage value
-- [ ] Partial-year depreciation: pro-rated from month of purchase
-- [ ] Change in estimate (new useful life / salvage value): prospective only, not retroactive
-- [ ] Monthly depreciation entries auto-posted to GL when period is open (Debit 6500 / Credit 1510)
-- [ ] Asset disposal: remove cost + accum. depr., record proceeds, post gain (4400) or loss (7100)
-- [ ] Maintenance log and scheduling
-- [ ] Asset register export to CSV/PDF
+- [x] Prisma models: Asset, AssetDepreciationEntry, AssetAssignment, AssetMaintenance
+- [x] Asset categories: Equipment, Furniture, Vehicles, IT, Intangibles
+- [x] Depreciation methods: Straight-Line, Double-Declining-Balance, Units of Activity
+- [x] Cannot depreciate below salvage value
+- [x] Partial-year depreciation: pro-rated from month of purchase
+- [x] Monthly depreciation entries auto-posted to GL (Debit 6500 / Credit 1510)
+- [x] Batch "Run Depreciation" for all active assets in an open period
+- [x] Asset disposal with proceeds, gain/loss journal entry (4400/7100)
+- [x] Maintenance log and scheduling
+- [x] Asset register export to CSV
+- [x] Purchase journal entry wired (Debit 1500/1600 / Credit 1000)
+- [ ] PDF export for asset register
+- [ ] Change in estimate UI (prospective update to useful life/salvage)
 
 ---
 

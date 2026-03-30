@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/layout/top-bar";
-import { getAssets, getAssetStats } from "@/lib/actions/assets";
+import { getAssets, getAssetStats, getOpenPeriods } from "@/lib/actions/assets";
 import { AssetStatsCards } from "@/components/assets/asset-stats-cards";
 import { AssetListTable } from "@/components/assets/asset-list-table";
+import { AssetRunDepreciationDialog } from "@/components/assets/asset-run-depreciation-dialog";
 import { ASSET_CATEGORIES, ASSET_STATUSES } from "@/lib/asset-constants";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 
 const STATUS_TABS = [
   { value: "", label: "All" },
@@ -23,7 +24,7 @@ export default async function AssetsPage({
   searchParams: Promise<{ status?: string; category?: string; search?: string }>;
 }) {
   const filters = await searchParams;
-  const [stats, assets] = await Promise.all([getAssetStats(), getAssets(filters)]);
+  const [stats, assets, openPeriods] = await Promise.all([getAssetStats(), getAssets(filters), getOpenPeriods()]);
 
   const activeStatus = filters.status ?? "";
   const activeCategory = filters.category ?? "";
@@ -43,9 +44,15 @@ export default async function AssetsPage({
         title="Assets"
         subtitle="Track and manage company assets"
         actions={
-          <Link href="/africs/accounting/assets/new">
-            <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Add Asset</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <AssetRunDepreciationDialog periods={openPeriods} />
+            <a href="/api/assets/export" download>
+              <Button size="sm" variant="outline" className="gap-2"><Download className="h-4 w-4" />Export CSV</Button>
+            </a>
+            <Link href="/africs/accounting/assets/new">
+              <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Add Asset</Button>
+            </Link>
+          </div>
         }
       />
       <div className="p-6 space-y-4">

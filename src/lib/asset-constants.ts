@@ -1,10 +1,14 @@
 export const ASSET_CATEGORIES = {
   equipment:       { label: "Equipment",       icon: "⚙️" },
   furniture:       { label: "Furniture",       icon: "🪑" },
-  vehicle:         { label: "Vehicle",         icon: "🚗" },
-  technology:      { label: "Technology",      icon: "💻" },
+  vehicles:        { label: "Vehicles",        icon: "🚗" },
+  it:              { label: "IT",              icon: "💻" },
+  intangibles:     { label: "Intangibles",     icon: "✨" },
   office_supplies: { label: "Office Supplies", icon: "📎" },
   other:           { label: "Other",           icon: "📦" },
+  // legacy aliases (existing seed data)
+  vehicle:         { label: "Vehicles",        icon: "🚗" },
+  technology:      { label: "IT",              icon: "💻" },
 } as const;
 
 export const ASSET_STATUSES = {
@@ -23,9 +27,12 @@ export const ASSET_CONDITIONS = {
 } as const;
 
 export const DEPRECIATION_METHODS = {
-  straight_line:     { label: "Straight Line" },
-  declining_balance: { label: "Declining Balance" },
-  none:              { label: "None" },
+  straight_line:            { label: "Straight-Line" },
+  double_declining_balance: { label: "Double-Declining Balance" },
+  units_of_activity:        { label: "Units of Activity" },
+  none:                     { label: "None" },
+  // legacy alias
+  declining_balance:        { label: "Declining Balance" },
 } as const;
 
 export const MAINTENANCE_STATUSES = {
