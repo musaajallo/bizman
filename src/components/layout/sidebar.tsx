@@ -87,6 +87,10 @@ import {
   ScrollText,
   FileMinus,
   ArrowUpDown,
+  List,
+  BookOpenCheck,
+  BookMarked,
+  CalendarRange,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/lib/stores/preferences-store";
@@ -165,7 +169,12 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
           { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and requisitions" },
           { label: "Loans", href: "/africs/accounting/loans", icon: Banknote, description: "Staff loans, owner loans and salary advances" },
+          { label: "Budgets", href: "/africs/accounting/budgets", icon: PieChart, description: "Plan and track spend across departments" },
           { label: "Assets", href: "/africs/accounting/assets", icon: Boxes, description: "Track and manage company assets and equipment" },
+          { label: "Chart of Accounts", href: "/africs/accounting/chart-of-accounts", icon: List, description: "Manage your general ledger accounts" },
+          { label: "Journal Entries", href: "/africs/accounting/journal-entries", icon: BookOpenCheck, description: "View all posted journal entries" },
+          { label: "General Ledger", href: "/africs/accounting/general-ledger", icon: BookMarked, description: "Account-by-account transaction history" },
+          { label: "Accounting Periods", href: "/africs/accounting/periods", icon: CalendarRange, description: "Open, close and lock accounting periods" },
         ],
       },
       {

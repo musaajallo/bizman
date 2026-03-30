@@ -36,7 +36,8 @@ export function TalentPoolDetailCard({ entry }: Props) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(entry.status);
 
-  function handleStatusChange(val: string) {
+  function handleStatusChange(val: string | null) {
+    if (!val) return;
     setStatus(val);
     startTransition(async () => { await updateTalentPoolStatus(entry.id, val); });
   }

@@ -82,7 +82,7 @@ export async function getAppraisalCycleById(id: string) {
   return {
     ...serializeCycle(c),
     _count: c._count,
-    appraisals: c.appraisals.map((a) => serializeAppraisal(a)),
+    appraisals: c.appraisals.map((a) => ({ ...serializeAppraisal(a), employee: a.employee })),
     employees: c.appraisals.map((a) => a.employee),
   };
 }

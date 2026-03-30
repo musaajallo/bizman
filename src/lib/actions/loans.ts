@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
+import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 function toNum(d: unknown): number {
   if (d == null) return 0;
@@ -128,9 +129,31 @@ export async function updateLoanStatus(id: string, status: string) {
   const owner = await getOwnerBusiness();
   if (!owner) return { error: "Not found" };
 
-  await prisma.loan.update({
-    where: { id, tenantId: owner.id },
-    data: { status },
+  const loan = await prisma.loan.findFirst({ where: { id, tenantId: owner.id } });
+  if (!loan) return { error: "Not found" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.loan.update({ where: { id }, data: { status } });
+
+    // Post GL entry when loan is disbursed (cash out, receivable in)
+    if (status === "disbursed") {
+      const principal = toNum(loan.principal);
+      if (principal > 0) {
+        await postJournalEntry({
+          tenantId: owner.id,
+          date: loan.disbursementDate ?? new Date(),
+          description: `Loan disbursed — ${loan.loanNumber} (${loan.borrowerName})`,
+          reference: loan.loanNumber,
+          sourceType: "loan",
+          sourceId: id,
+          lines: [
+            { accountCode: "1700", debit: principal, description: "Staff Loans Receivable" },
+            { accountCode: "1000", credit: principal, description: "Cash/Bank" },
+          ],
+          tx,
+        });
+      }
+    }
   });
 
   revalidatePath("/africs/accounting/loans");
@@ -157,29 +180,53 @@ export async function addRepayment(loanId: string, formData: FormData) {
   const loan = await prisma.loan.findUnique({ where: { id: loanId, tenantId: owner.id } });
   if (!loan) return { error: "Loan not found" };
 
-  const repayment = await prisma.loanRepayment.create({
-    data: {
-      tenantId: owner.id,
-      loanId,
-      amount: parseFloat(formData.get("amount") as string),
-      method: (formData.get("method") as string) || "bank_transfer",
-      paidAt: formData.get("paidAt") ? new Date(formData.get("paidAt") as string) : new Date(),
-      notes: (formData.get("notes") as string) || null,
-    },
-  });
+  const amount = parseFloat(formData.get("amount") as string);
+  const paidAt = formData.get("paidAt") ? new Date(formData.get("paidAt") as string) : new Date();
 
-  // Check if fully paid and auto-settle
-  const allRepayments = await prisma.loanRepayment.findMany({ where: { loanId } });
-  const totalPaid = allRepayments.reduce((sum, r) => sum + toNum(r.amount), 0);
-  if (totalPaid >= toNum(loan.principal)) {
-    await prisma.loan.update({ where: { id: loanId }, data: { status: "settled" } });
-  } else if (loan.status === "approved" || loan.status === "disbursed") {
-    await prisma.loan.update({ where: { id: loanId }, data: { status: "active" } });
-  }
+  let repaymentId: string;
+
+  await prisma.$transaction(async (tx) => {
+    const repayment = await tx.loanRepayment.create({
+      data: {
+        tenantId: owner.id,
+        loanId,
+        amount,
+        method: (formData.get("method") as string) || "bank_transfer",
+        paidAt,
+        notes: (formData.get("notes") as string) || null,
+      },
+    });
+    repaymentId = repayment.id;
+
+    // Check if fully paid and auto-settle
+    const allRepayments = await tx.loanRepayment.findMany({ where: { loanId } });
+    const totalPaid = allRepayments.reduce((sum, r) => sum + toNum(r.amount), 0);
+    if (totalPaid >= toNum(loan.principal)) {
+      await tx.loan.update({ where: { id: loanId }, data: { status: "settled" } });
+    } else if (loan.status === "approved" || loan.status === "disbursed") {
+      await tx.loan.update({ where: { id: loanId }, data: { status: "active" } });
+    }
+
+    if (amount > 0) {
+      await postJournalEntry({
+        tenantId: owner.id,
+        date: paidAt,
+        description: `Loan repayment — ${loan.loanNumber} (${loan.borrowerName})`,
+        reference: loan.loanNumber,
+        sourceType: "loan_repayment",
+        sourceId: repayment.id,
+        lines: [
+          { accountCode: "1000", debit: amount, description: "Cash/Bank" },
+          { accountCode: "1700", credit: amount, description: "Staff Loans Receivable" },
+        ],
+        tx,
+      });
+    }
+  });
 
   revalidatePath(`/africs/accounting/loans/${loanId}`);
   revalidatePath("/africs/accounting/loans");
-  return { id: repayment.id };
+  return { id: repaymentId! };
 }
 
 export async function deleteRepayment(id: string, loanId: string) {

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
+import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 function toNum(d: unknown): number {
   if (d === null || d === undefined) return 0;
@@ -256,7 +257,27 @@ export async function approveBill(id: string) {
   if (!bill) return { error: "Not found" };
   if (bill.status !== "draft") return { error: "Only draft bills can be approved" };
 
-  await prisma.bill.update({ where: { id }, data: { status: "approved" } });
+  await prisma.$transaction(async (tx) => {
+    await tx.bill.update({ where: { id }, data: { status: "approved" } });
+
+    const total = toNum(bill.totalAmount);
+    if (total > 0) {
+      await postJournalEntry({
+        tenantId: owner.id,
+        date: bill.issueDate,
+        description: `Bill ${bill.billNumber} approved — ${bill.title}`,
+        reference: bill.billNumber,
+        sourceType: "bill",
+        sourceId: id,
+        lines: [
+          { accountCode: "6200", debit: total, description: bill.title },
+          { accountCode: "2000", credit: total, description: "Accounts Payable" },
+        ],
+        tx,
+      });
+    }
+  });
+
   revalidatePath(`/africs/accounting/bills/${id}`);
   revalidatePath("/africs/accounting/bills");
   return { success: true };
@@ -277,13 +298,15 @@ export async function recordBillPayment(
   const currentDue = toNum(bill.amountDue);
   if (data.amount > currentDue + 0.01) return { error: `Amount exceeds the amount due (${currentDue})` };
 
+  const paymentDate = new Date(data.paymentDate);
+
   await prisma.$transaction(async (tx) => {
     await tx.billPayment.create({
       data: {
         billId: id,
         tenantId: owner.id,
         amount: data.amount,
-        paymentDate: new Date(data.paymentDate),
+        paymentDate,
         paymentMethod: data.paymentMethod || null,
         reference: data.reference || null,
         notes: data.notes || null,
@@ -302,6 +325,20 @@ export async function recordBillPayment(
         status: isPaid ? "paid" : "partially_paid",
         paidAt: isPaid ? new Date() : null,
       },
+    });
+
+    await postJournalEntry({
+      tenantId: owner.id,
+      date: paymentDate,
+      description: `Payment — Bill ${bill.billNumber}`,
+      reference: data.reference || bill.billNumber,
+      sourceType: "bill_payment",
+      sourceId: id,
+      lines: [
+        { accountCode: "2000", debit: data.amount, description: "Accounts Payable" },
+        { accountCode: "1000", credit: data.amount, description: "Cash/Bank" },
+      ],
+      tx,
     });
   });
 

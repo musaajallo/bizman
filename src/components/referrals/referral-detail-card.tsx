@@ -44,7 +44,8 @@ export function ReferralDetailCard({ referral }: Props) {
   const [reviewNote, setReviewNote] = useState(referral.reviewNote ?? "");
   const [showNote, setShowNote] = useState(false);
 
-  function handleStatusChange(val: string) {
+  function handleStatusChange(val: string | null) {
+    if (!val) return;
     setStatus(val);
     startTransition(async () => { await updateReferralStatus(referral.id, val); });
   }

@@ -152,15 +152,57 @@ Last updated: 2026-03-24
 - [ ] Invoice notifications (in-app + email on send, view, payment)
 - [ ] Billable services list — track which services generate revenue
 
-### Chart of Accounts — NOT STARTED 🔲
-> Foundation for double-entry bookkeeping and financial statements. All transactions (invoices, bills, payroll, expenses, loans) post to accounts.
-- [ ] Prisma models: Account, AccountType
-- [ ] Account types: Asset, Liability, Equity, Revenue, Expense
-- [ ] Pre-seeded default chart of accounts (receivables, payables, cash, revenue, COGS, salaries, etc.)
-- [ ] Custom accounts: add/edit/deactivate, assign parent for sub-accounts
-- [ ] Account codes (e.g. 1000 Cash, 2000 Accounts Payable)
-- [ ] Link existing transactions: invoices → AR, bills → AP, payroll → salary expense, expenses → expense accounts
-- [ ] Account detail view: running balance, transaction history
+### Chart of Accounts — DONE ✅
+- [x] Prisma model: LedgerAccount (code, name, type, normalBalance, parentId, isActive, isSystem, tenantId)
+- [x] Account types: Asset | Liability | Equity | Revenue | CostOfSales | Expense | NonOperating
+- [x] Normal balance auto-set by type; contra-account flag
+- [x] Pre-seeded default chart (40+ accounts covering standard codes 1000–7300)
+- [x] Custom accounts: add, rename, deactivate
+- [x] Accounts with journal entries cannot be deactivated
+- [x] Account type/normal balance locked after creation
+- [ ] Account detail view: all journal entries for this account, running balance, export to CSV
+
+### General Ledger & Trial Balance — DONE ✅
+- [x] General Ledger view: per-account list of all journal entries, expandable rows
+- [x] Trial Balance tab: two-column Dr/Cr with totals and balanced indicator
+- [x] Balance calculated dynamically from journal entries (no stored running balance)
+- [ ] Filter GL by date range
+- [ ] Export GL and Trial Balance to CSV and PDF
+
+### Journal Entries — DONE ✅
+- [x] Prisma models: JournalEntry + JournalEntryLine (Decimal 12,2)
+- [x] Auto-journal entries wired to all existing transaction types:
+  - [x] Invoice sent (draft→sent) → Debit 1100 AR / Credit 4000 Revenue
+  - [x] Invoice payment received → Debit 1000 Cash / Credit 1100 AR
+  - [x] Bill approved → Debit 6200 Expense / Credit 2000 AP
+  - [x] Bill payment made → Debit 2000 AP / Credit 1000 Cash
+  - [x] Expense reimbursed → Debit 6200 Expense / Credit 1000 Cash
+  - [x] Payroll processed → Debit 6000 Salaries / Credit 2100 Wages Payable
+  - [x] Payroll paid → Debit 2100 Wages Payable / Credit 1000 Cash
+  - [x] Loan disbursed → Debit 1700 Loans Receivable / Credit 1000 Cash
+  - [x] Loan repayment → Debit 1000 Cash / Credit 1700 Loans Receivable
+  - [ ] Credit note issued → Debit 4000 Revenue / Credit 1100 AR
+  - [ ] Asset purchased → Debit 1500 PP&E / Credit 1000 Cash
+  - [ ] Depreciation posted → Debit 6500 Depreciation / Credit 1510 Accum. Depr.
+- [x] Journal entry list view: filterable by period and source type, expandable rows
+- [ ] Manual journal entries form (inline debit/credit lines, balanced validation)
+
+### Accounting Periods — DONE ✅
+- [x] Prisma model: AccountingPeriod (tenantId, name, startDate, endDate, status, fiscalYear)
+- [x] Period statuses: open → closed → locked
+- [x] Overlap detection on period creation
+- [x] Period management UI (create, close, reopen, lock with confirmation)
+- [ ] System auto-creates next period on close of current
+- [ ] Dashboard indicator: current period + days remaining
+
+### Adjusting Entries — NOT STARTED 🔲
+> Period-end adjustments for accruals, deferrals, prepaid allocation, and unearned revenue.
+- [ ] Four types: accrued expense, accrued revenue, deferred expense (prepaid), deferred revenue
+- [ ] Posted as manual journal entries (same model, flagged as adjusting type)
+- [ ] Only allowed in open periods
+- [ ] Reversing entries: optional mirror-image entry auto-posted to first day of next period
+- [ ] Adjusting entry templates: save and reuse monthly recurring adjustments
+- [ ] Adjusting entries included in adjusted trial balance; excluded from unadjusted
 
 ### Expense Categories — NOT STARTED 🔲
 > Structured tagging for all outgoing spend — replaces free-text categories on expenses and bills.
@@ -184,16 +226,16 @@ Last updated: 2026-03-24
 - [ ] Payroll integration (auto-deduct flagged loans during payroll run)
 - [ ] Link to Chart of Accounts (loans receivable account)
 
-### Budgets — NOT STARTED 🔲
+### Budgets — DONE ✅
 > Plan and monitor spend across departments and units. Compare actuals (from expenses, bills, payroll) against budget lines.
-- [ ] Prisma models: Budget, BudgetLine
-- [ ] Budget period: annual or custom date range, name (e.g. "FY2026 Operations Budget")
-- [ ] Budget lines: per department, per unit, per expense category — allocated amount, currency
-- [ ] Actuals auto-pulled from: Expense records, Bill amounts, Payroll runs — filtered by department/unit
-- [ ] Variance view: allocated vs. actual vs. remaining, % used, over/under budget flag
-- [ ] Budget approval flow: draft → submitted → approved
+- [x] Prisma models: Budget, BudgetLine
+- [x] Budget period: annual or custom date range, name (e.g. "FY2026 Operations Budget")
+- [x] Budget lines: per department, per unit, per expense category — allocated amount, currency
+- [x] Actuals auto-pulled from: Expense records, Bill amounts, Payroll runs — filtered by department/unit
+- [x] Variance view: allocated vs. actual vs. remaining, % used, over/under budget flag
+- [x] Budget approval flow: draft → submitted → approved
+- [x] Export budget report (PDF + CSV)
 - [ ] Department heads can view their own budget lines (scoped access)
-- [ ] Export budget report (PDF + CSV)
 
 ### Procurement (Internal Buying) — DONE ✅
 > Staff raise purchase requests internally. Manager approves, PO is issued to supplier, goods/services received, bill recorded.
@@ -230,12 +272,55 @@ Last updated: 2026-03-24
 - [ ] Won bid → auto-create Project (pre-filled with client, value, scope)
 - [ ] Dashboard: pipeline by stage, win rate, total bid value in progress, upcoming submission deadlines
 
-### Assets — STUB 🪧
-- [ ] Prisma models: Asset, AssetMaintenance, AssetAssignment
-- [ ] Asset register (track equipment, furniture, tech)
-- [ ] Assignment to employees or locations
+### AR Enhancements — Allowance Method & Bad Debts — NOT STARTED 🔲
+> Extends the invoice module with IFRS/GAAP-compliant bad debt estimation and write-offs.
+- [ ] Allowance for Doubtful Accounts (1110) wired to Chart of Accounts
+- [ ] Configurable reserve % per aging bucket (default: current 1%, 31–60d 3%, 61–90d 10%, 91–180d 40%, 180d+ 80%)
+- [ ] Period-end bad debt estimation: calculate required allowance → post adjusting entry (Debit 6600 Bad Debts Expense / Credit 1110 Allowance)
+- [ ] Write-off workflow: Debit 1110 Allowance / Credit 1100 AR (no P&L impact — already expensed via allowance)
+- [ ] Recovery workflow: reverse write-off then record payment
+- [ ] Balance Sheet shows AR net of allowance (Net Realisable Value)
+- [ ] Aging report shows: gross AR, estimated uncollectible, net AR by bucket
+
+### AP Enhancements — Aging & Early Payment Discounts — NOT STARTED 🔲
+> Extends the bills module with aging analysis and discount capture.
+- [ ] AP aging report: current (not yet due), 1–30d, 31–60d, 61–90d, 90d+ overdue
+- [ ] Payment terms stored on vendor record and defaulted to each bill (e.g. Net 30, 2/10 n/30)
+- [ ] Early payment discount: flag bills where discount window is still open
+- [ ] Discount capture journal entry: Debit AP (full) / Credit Cash (net) / Credit 4500 Purchase Discounts Received
+- [ ] Show annualised cost of missing discount on bill detail (2/10 n/30 ≈ 36% annualised)
+
+### Bank Reconciliation — NOT STARTED 🔲
+> Match internal GL Cash entries to bank statement lines. Required for financial statement integrity.
+- [ ] Prisma models: BankAccount (name, accountNumber, currency, tenantId), BankStatement (bankAccountId, periodId, openingBalance, closingBalance), BankStatementLine (statementId, date, description, amount, matchedJournalEntryLineId)
+- [ ] One reconciliation per bank account per accounting period
+- [ ] Import bank statement lines (CSV upload) or manual entry
+- [ ] Auto-matching: match bank lines to GL Cash entries on amount + date ± 3 days
+- [ ] Unmatched bank-side items: deposits in transit, outstanding cheques, bank errors
+- [ ] Unmatched books-side items: bank fees, interest earned, NSF cheques → post adjusting entries
+  - [ ] Bank fee: Debit 6900 G&A / Credit 1000 Cash
+  - [ ] Interest earned: Debit 1000 Cash / Credit 4200 Interest Income
+  - [ ] NSF cheque: reverse original payment entry + post bank fee
+- [ ] Reconciliation complete when: Adjusted Bank Balance = Adjusted Book Balance
+- [ ] Once reconciled and confirmed: lock period for bank account; re-open requires manager override + audit log
+- [ ] Unreconciled items > 90 days flagged for review
+- [ ] Export reconciliation statement as PDF
+
+### Assets — NOT STARTED 🔲
+> Fixed asset register with depreciation, disposal, and automatic GL posting.
+- [ ] Prisma models: Asset (name, code, category, purchaseDate, cost, salvageValue, usefulLifeYears, depreciationMethod, linkedAccountId, status, tenantId), AssetDepreciationEntry (assetId, periodId, amount, journalEntryId), AssetAssignment (assetId, employeeId / departmentId / locationId), AssetMaintenance (assetId, date, cost, description)
+- [ ] Asset categories: Equipment | Furniture | Vehicles | IT | Intangibles
+- [ ] Depreciation methods:
+  - [ ] Straight-Line: `(Cost − Salvage) ÷ Useful Life in Years ÷ 12` per month
+  - [ ] Double-Declining-Balance: `Book Value × (2 ÷ Useful Life)`; switch to SL when SL gives higher charge
+  - [ ] Units of Activity: `(Cost − Salvage) ÷ Total Expected Units × Units Used in Period`
+- [ ] Cannot depreciate below salvage value
+- [ ] Partial-year depreciation: pro-rated from month of purchase
+- [ ] Change in estimate (new useful life / salvage value): prospective only, not retroactive
+- [ ] Monthly depreciation entries auto-posted to GL when period is open (Debit 6500 / Credit 1510)
+- [ ] Asset disposal: remove cost + accum. depr., record proceeds, post gain (4400) or loss (7100)
 - [ ] Maintenance log and scheduling
-- [ ] Depreciation tracking
+- [ ] Asset register export to CSV/PDF
 
 ---
 
@@ -243,23 +328,40 @@ Last updated: 2026-03-24
 
 ## Finance Module — STUB 🪧
 
-> Analytical layer — reads from Accounting. No data entry here; it aggregates invoices, bills, expenses, and payroll into statements and projections.
+> Analytical layer — reads from the General Ledger (not raw transaction tables). No data entry here.
+> **Dependency: Accounting → Chart of Accounts → Journal Entries → GL must be complete first.**
 
 ### Phase 1: Financial Statements — NOT STARTED 🔲
-- [ ] Prisma models: JournalEntry, Account (chart of accounts), AccountingPeriod
-- [ ] Accrual accounting engine — link invoices → AR, bills → AP, payroll → expenses, payments → cash
-- [ ] P&L (Income Statement) — revenue vs. expenses for any date range
-- [ ] Balance Sheet — assets, liabilities, equity at a point in time
-- [ ] Cash Flow Statement — operating, investing, financing activities
-- [ ] Finance dashboard — key KPIs (gross margin, net profit, cash position, burn rate)
+> All four statements generated from the General Ledger for any selected period. Read-only. PDF export required.
+- [ ] Income Statement (P&L): Revenue → Gross Profit → Operating Income → Net Income; Gross/Operating/Net margin %
+- [ ] Balance Sheet: Current Assets (AR net of allowance, Inventory, Prepaid, Cash) + Non-Current Assets (PP&E net of accum. depr.) = Current Liabilities + Non-Current Liabilities + Equity; Total Assets must equal Total Liabilities + Equity
+- [ ] Cash Flow Statement (indirect method): Operating (Net Income + non-cash adjustments + working capital changes) + Investing (capex, disposals) + Financing (loans, drawings); Closing Cash must match GL 1000 Cash account
+- [ ] Statement of Retained Earnings: Opening RE + Net Income − Drawings = Closing RE
+- [ ] Comparative columns: current period vs. prior period side-by-side
+- [ ] Finance dashboard — key KPIs: gross margin, net profit margin, cash balance, AR days, AP days
+- [ ] PDF export for all four statements
 
-### Phase 2: Budgets — NOT STARTED 🔲
-- [ ] Prisma models: Budget, BudgetLine
-- [ ] Create annual / quarterly budgets by category
-- [ ] Actuals vs. budget variance view
-- [ ] Alerts when spend exceeds budget thresholds
+### Phase 2: Financial Ratios Dashboard — NOT STARTED 🔲
+> Calculated from the latest financial statements. Benchmarks shown with green/amber/red indicators.
+- [ ] Liquidity: Current Ratio (≥1.5), Quick Ratio (≥1.0), Cash Ratio (≥0.5)
+- [ ] Profitability: Gross Margin %, Operating Margin %, Net Margin %, ROA, ROE
+- [ ] Efficiency: AR Turnover, Days Sales Outstanding, AP Turnover, Days Payable Outstanding, Inventory Turnover, Days Inventory Outstanding, Cash Conversion Cycle (DSO + DIO − DPO)
+- [ ] Solvency: Debt-to-Equity (<2.0), Debt Ratio (<0.5), Interest Coverage (≥3.0)
+- [ ] 12-month trend sparkline per ratio
+- [ ] Tooltip on each ratio explaining what it measures and how to interpret it
 
-### Phase 3: Forecasting — NOT STARTED 🔲
+### Phase 3: Budgets — DONE ✅
+- [x] Prisma models: Budget, BudgetLine
+- [x] Budget period: annual or custom date range
+- [x] Budget lines: per department, per unit, per expense category
+- [x] Actuals auto-pulled from expenses, bills, payroll
+- [x] Variance view: allocated vs. actual vs. remaining, % used, over/under budget flag
+- [x] Approval flow: draft → submitted → approved
+- [x] Export budget report (PDF + CSV)
+- [ ] Link budget actuals to GL accounts (replace raw table aggregation with GL-based actuals)
+- [ ] Alerts when spend exceeds budget line threshold
+
+### Phase 4: Forecasting — NOT STARTED 🔲
 - [ ] Revenue forecasting (pipeline + recurring invoice projection)
 - [ ] Expense forecasting (payroll + recurring bills)
 - [ ] Cash flow forecast (12-month rolling)
@@ -627,12 +729,25 @@ Last updated: 2026-03-24
 - [ ] Order management + fulfilment
 - [ ] Payment gateway integration
 
-### Inventory — STUB 🪧
-- [ ] Prisma models: InventoryItem, StockMovement, Warehouse
-- [ ] Stock levels and locations
-- [ ] Stock movement log (in/out/transfer)
-- [ ] Low-stock alerts
-- [ ] Link to procurement and sales orders
+### Inventory — NOT STARTED 🔲
+> Perpetual inventory system with IFRS-compliant cost flow methods. LIFO is not implemented (prohibited under IFRS IAS 2).
+- [ ] Prisma models: InventoryItem (name, sku, costMethod, currentCost, quantity, warehouseId, linkedAccountId), StockMovement (itemId, type, quantity, unitCost, totalCost, sourceType, sourceId, journalEntryId), Warehouse, StockTake (date, lines with counted vs. system qty)
+- [ ] Cost flow methods per item (or company-wide setting):
+  - [ ] **FIFO** (default): oldest costs expensed first; ending inventory at newest costs
+  - [ ] **Weighted Average**: avg cost recalculated after each receipt; applied to all issues
+- [ ] Perpetual system: GL updated on every movement (no period-end catch-up)
+- [ ] Goods receipt (from procurement PO) → Debit 1200 Inventory / Credit 2000 AP
+- [ ] Sale / issue → Debit 5000 COGS / Credit 1200 Inventory (at cost)
+- [ ] Valuation rule: **Lower of Cost or Net Realisable Value (IFRS IAS 2)**
+  - [ ] Write-down to NRV: Debit 5000 COGS / Credit 1200 Inventory
+- [ ] Stock levels and warehouse locations
+- [ ] Stock movement log (receipt / issue / transfer / adjustment / write-down)
+- [ ] Stocktake / physical count: record actual count, post variance adjustment entry
+  - [ ] Surplus: Debit 1200 Inventory / Credit 5000 COGS
+  - [ ] Shortage: Debit 5000 COGS / Credit 1200 Inventory
+- [ ] Inventory aging report: items with zero movement in 90 / 180 days
+- [ ] Low-stock alerts (configurable reorder point per item)
+- [ ] Link to procurement (PO receipt auto-updates inventory) and sales orders
 
 ---
 

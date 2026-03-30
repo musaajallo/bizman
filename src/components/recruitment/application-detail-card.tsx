@@ -67,7 +67,8 @@ export function ApplicationDetailCard({ application, employees = [] }: Props) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [linkedEmployee, setLinkedEmployee] = useState(application.hiredEmployee);
 
-  function handleStageChange(val: string) {
+  function handleStageChange(val: string | null) {
+    if (!val) return;
     setStage(val);
     startTransition(async () => { await moveApplicationStage(application.id, val); });
   }

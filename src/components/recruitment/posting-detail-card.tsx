@@ -64,7 +64,8 @@ export function PostingDetailCard({ posting }: Props) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(posting.status);
 
-  function handleStatusChange(val: string) {
+  function handleStatusChange(val: string | null) {
+    if (!val) return;
     setStatus(val);
     startTransition(async () => { await updateJobPostingStatus(posting.id, val); });
   }

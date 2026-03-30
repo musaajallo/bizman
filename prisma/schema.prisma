@@ -236,6 +236,15 @@ model Tenant {
   // Loans
   loans              Loan[]
   loanRepayments     LoanRepayment[]
+
+  // Budgets
+  budgets            Budget[]
+  budgetLines        BudgetLine[]
+
+  // Accounting engine
+  accountingPeriods  AccountingPeriod[]
+  ledgerAccounts     LedgerAccount[]
+  journalEntries     JournalEntry[]
 }
 
 model TenantUser {
@@ -2337,4 +2346,138 @@ model LoanRepayment {
 
   @@index([loanId])
   @@index([tenantId])
+}
+
+// --- Budgets ---
+
+model Budget {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?  @db.Text
+  startDate   DateTime
+  endDate     DateTime
+  currency    String   @default("GMD")
+  // draft | submitted | approved
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lines  BudgetLine[]
+
+  @@index([tenantId, status])
+}
+
+model BudgetLine {
+  id           String  @id @default(cuid())
+  budgetId     String
+  tenantId     String
+  // Label for this line (e.g. department name, unit name, or category)
+  label        String
+  // department | unit | category | other
+  lineType     String  @default("category")
+  // Reference to department name, unit name, or expense category name
+  reference    String?
+  allocatedAmount Decimal @db.Decimal(12, 2)
+  notes        String? @db.Text
+
+  createdAt    DateTime @default(now())
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@index([tenantId])
+}
+
+// ─── Accounting Engine ────────────────────────────────────────────────────────
+
+model AccountingPeriod {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String   // e.g. "March 2026"
+  startDate  DateTime
+  endDate    DateTime
+  fiscalYear Int
+  // open | closed | locked
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journalEntries JournalEntry[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, fiscalYear])
+}
+
+// Chart of Accounts entry.
+// Named LedgerAccount to avoid conflict with Auth.js Account model.
+model LedgerAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  code          String   // e.g. "1100"
+  name          String   // e.g. "Accounts Receivable"
+  // Asset | Liability | Equity | Revenue | CostOfSales | Expense | NonOperating
+  type          String
+  // debit | credit  (normal balance for this account type)
+  normalBalance String
+  // true for contra-accounts (e.g. Allowance for DA, Accumulated Depreciation)
+  isContra      Boolean  @default(false)
+  parentId      String?
+  isActive      Boolean  @default(true)
+  // true = pre-seeded system account; cannot be deleted
+  isSystem      Boolean  @default(false)
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent            LedgerAccount?     @relation("LedgerAccountHierarchy", fields: [parentId], references: [id])
+  children          LedgerAccount[]    @relation("LedgerAccountHierarchy")
+  journalEntryLines JournalEntryLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, type])
+  @@index([tenantId, isActive])
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  tenantId    String
+  periodId    String
+  date        DateTime
+  description String
+  reference   String?  // human-readable ref e.g. "INV-0042"
+  // invoice | payment | bill | bill_payment | expense | payroll | loan | asset | manual | adjusting
+  sourceType  String
+  sourceId    String?  // FK to source record (null for manual entries)
+  isReversing Boolean  @default(false)
+  reversesId  String?  // points to the JournalEntry this one reverses
+  postedById  String?
+  createdAt   DateTime @default(now())
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period  AccountingPeriod @relation(fields: [periodId], references: [id])
+  lines   JournalEntryLine[]
+
+  @@index([tenantId, date])
+  @@index([tenantId, sourceType, sourceId])
+  @@index([periodId])
+}
+
+model JournalEntryLine {
+  id             String  @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  debit          Decimal @default(0) @db.Decimal(12, 2)
+  credit         Decimal @default(0) @db.Decimal(12, 2)
+  description    String?
+
+  journalEntry JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
 }

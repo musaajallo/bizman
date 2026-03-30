@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
+import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 // --- Queries ---
 
@@ -646,20 +647,46 @@ export async function duplicateInvoice(invoiceId: string) {
 export async function sendInvoice(invoiceId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
+  const userId = session.user.id;
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { status: true } });
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { status: true, tenantId: true, total: true, invoiceNumber: true, type: true },
+  });
   if (!invoice) return { error: "Invoice not found" };
   if (invoice.status !== "draft" && invoice.status !== "sent") return { error: "Invoice cannot be sent in current status" };
 
-  await prisma.$transaction([
-    prisma.invoice.update({
+  const wasDraft = invoice.status === "draft";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoice.update({
       where: { id: invoiceId },
       data: { status: "sent", sentAt: new Date() },
-    }),
-    prisma.invoiceActivity.create({
-      data: { invoiceId, actorId: session.user.id, action: "sent" },
-    }),
-  ]);
+    });
+    await tx.invoiceActivity.create({
+      data: { invoiceId, actorId: userId, action: "sent" },
+    });
+
+    // Post AR entry only when transitioning from draft (first send)
+    if (wasDraft && invoice.type !== "proforma") {
+      const total = Number(invoice.total);
+      if (total > 0) {
+        await postJournalEntry({
+          tenantId: invoice.tenantId,
+          date: new Date(),
+          description: `Invoice ${invoice.invoiceNumber} issued`,
+          reference: invoice.invoiceNumber,
+          sourceType: "invoice",
+          sourceId: invoiceId,
+          lines: [
+            { accountCode: "1100", debit: total, description: "Accounts Receivable" },
+            { accountCode: "4000", credit: total, description: "Revenue" },
+          ],
+          tx,
+        });
+      }
+    }
+  });
 
   revalidatePath("/africs/accounting/invoices");
   return { success: true };
@@ -866,6 +893,7 @@ export async function recordPayment(invoiceId: string, data: {
 }) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
+  const userId = session.user.id;
 
   if (data.amount <= 0) return { error: "Payment amount must be positive" };
 
@@ -884,19 +912,26 @@ export async function recordPayment(invoiceId: string, data: {
   const newDue = Math.round((total - newPaid) * 100) / 100;
   const fullyPaid = newDue <= 0;
 
-  await prisma.$transaction([
-    prisma.invoicePayment.create({
+  const paymentDate = data.date ? new Date(data.date) : new Date();
+
+  const invoiceFull = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { tenantId: true, invoiceNumber: true },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoicePayment.create({
       data: {
         invoiceId,
         amount: data.amount,
         method: data.method || null,
         reference: data.reference || null,
         notes: data.notes || null,
-        date: data.date ? new Date(data.date) : new Date(),
-        recordedById: session.user.id,
+        date: paymentDate,
+        recordedById: userId,
       },
-    }),
-    prisma.invoice.update({
+    });
+    await tx.invoice.update({
       where: { id: invoiceId },
       data: {
         amountPaid: newPaid,
@@ -904,16 +939,32 @@ export async function recordPayment(invoiceId: string, data: {
         status: fullyPaid ? "paid" : invoice.status,
         paidDate: fullyPaid ? new Date() : undefined,
       },
-    }),
-    prisma.invoiceActivity.create({
+    });
+    await tx.invoiceActivity.create({
       data: {
         invoiceId,
-        actorId: session.user.id,
+        actorId: userId,
         action: fullyPaid ? "paid" : "partially_paid",
         details: { amount: data.amount, method: data.method },
       },
-    }),
-  ]);
+    });
+
+    if (invoiceFull) {
+      await postJournalEntry({
+        tenantId: invoiceFull.tenantId,
+        date: paymentDate,
+        description: `Payment received — Invoice ${invoiceFull.invoiceNumber}`,
+        reference: data.reference || invoiceFull.invoiceNumber,
+        sourceType: "invoice_payment",
+        sourceId: invoiceId,
+        lines: [
+          { accountCode: "1000", debit: data.amount, description: "Cash/Bank" },
+          { accountCode: "1100", credit: data.amount, description: "Accounts Receivable" },
+        ],
+        tx,
+      });
+    }
+  });
 
   revalidatePath("/africs/accounting/invoices");
   return { success: true };

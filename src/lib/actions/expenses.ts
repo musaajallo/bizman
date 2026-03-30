@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
 import { auth } from "@/lib/auth";
 import { EXPENSE_CATEGORIES } from "@/lib/expense-constants";
+import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 function toNum(d: unknown): number {
   if (d === null || d === undefined) return 0;
@@ -249,7 +250,27 @@ export async function markReimbursed(id: string) {
   if (!expense) return { error: "Not found" };
   if (expense.status !== "approved") return { error: "Only approved expenses can be marked as reimbursed" };
 
-  await prisma.expense.update({ where: { id }, data: { status: "reimbursed", reimbursedAt: new Date() } });
+  const reimbursedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.expense.update({ where: { id }, data: { status: "reimbursed", reimbursedAt } });
+
+    const amount = Number(expense.amount);
+    if (amount > 0) {
+      await postJournalEntry({
+        tenantId: owner.id,
+        date: reimbursedAt,
+        description: `Expense reimbursed — ${expense.title}`,
+        sourceType: "expense",
+        sourceId: id,
+        lines: [
+          { accountCode: "6200", debit: amount, description: expense.title },
+          { accountCode: "1000", credit: amount, description: "Cash/Bank" },
+        ],
+        tx,
+      });
+    }
+  });
 
   revalidatePath(`/africs/accounting/expenses/${id}`);
   revalidatePath("/africs/accounting/expenses");

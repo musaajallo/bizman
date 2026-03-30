@@ -512,7 +512,7 @@ export default async function HRDashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard color="bg-pink-500/10" icon={<UserRoundPlus className="h-4 w-4 text-pink-500" />} label="Total Referrals" value={referralStats.total} />
             <StatCard color="bg-amber-500/10" icon={<Clock className="h-4 w-4 text-amber-500" />} label="Pending Review" value={referralStats.submitted} />
-            <StatCard color="bg-violet-500/10" icon={<TrendingUp className="h-4 w-4 text-violet-500" />} label="Interviewing" value={referralStats.interviewing} />
+            <StatCard color="bg-violet-500/10" icon={<TrendingUp className="h-4 w-4 text-violet-500" />} label="Interviewing" value={referralStats.interviewing ?? 0} />
             <StatCard color="bg-emerald-500/10" icon={<Trophy className="h-4 w-4 text-emerald-500" />} label="Hired" value={referralStats.hired} />
           </div>
         </section>

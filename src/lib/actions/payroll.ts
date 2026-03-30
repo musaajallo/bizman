@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
 import { getApprovedOvertimeForPayroll } from "./overtime";
+import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -403,9 +404,28 @@ export async function processPayrollRun(id: string) {
   if (!run) return { error: "Not found" };
   if (run.status !== "draft") return { error: "Payroll run is not in draft status" };
 
+  const processedAt = new Date();
+
   await prisma.$transaction(async (tx) => {
     await tx.payslip.updateMany({ where: { payrollRunId: id }, data: { status: "processed" } });
-    await tx.payrollRun.update({ where: { id }, data: { status: "processing", processedAt: new Date() } });
+    await tx.payrollRun.update({ where: { id }, data: { status: "processing", processedAt } });
+
+    const totalNet = toNum(run.totalNet);
+    if (totalNet > 0) {
+      await postJournalEntry({
+        tenantId: owner.id,
+        date: processedAt,
+        description: `Payroll — ${run.periodLabel}`,
+        reference: id,
+        sourceType: "payroll_run",
+        sourceId: id,
+        lines: [
+          { accountCode: "6000", debit: totalNet, description: "Salaries & Wages" },
+          { accountCode: "2100", credit: totalNet, description: "Wages Payable" },
+        ],
+        tx,
+      });
+    }
   });
 
   revalidatePath(`/africs/accounting/payroll/${id}`);
@@ -421,9 +441,28 @@ export async function markPayrollPaid(id: string) {
   if (!run) return { error: "Not found" };
   if (run.status !== "processing") return { error: "Payroll run must be in processing status" };
 
+  const paidAt = new Date();
+
   await prisma.$transaction(async (tx) => {
     await tx.payslip.updateMany({ where: { payrollRunId: id }, data: { status: "paid" } });
-    await tx.payrollRun.update({ where: { id }, data: { status: "paid", paidAt: new Date() } });
+    await tx.payrollRun.update({ where: { id }, data: { status: "paid", paidAt } });
+
+    const totalNet = toNum(run.totalNet);
+    if (totalNet > 0) {
+      await postJournalEntry({
+        tenantId: owner.id,
+        date: paidAt,
+        description: `Payroll paid — ${run.periodLabel}`,
+        reference: id,
+        sourceType: "payroll_payment",
+        sourceId: id,
+        lines: [
+          { accountCode: "2100", debit: totalNet, description: "Wages Payable" },
+          { accountCode: "1000", credit: totalNet, description: "Cash/Bank" },
+        ],
+        tx,
+      });
+    }
   });
 
   revalidatePath(`/africs/accounting/payroll/${id}`);
