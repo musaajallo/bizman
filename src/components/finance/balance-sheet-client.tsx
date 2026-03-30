@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Download } from "lucide-react";
 import type { BalanceSheet, BSLine } from "@/lib/actions/accounting/statements";
 
 function fmt(n: number) {
@@ -43,6 +43,16 @@ export function BalanceSheetClient({ data, asOf }: Props) {
               <Input id="asOf" name="asOf" type="date" defaultValue={asOf} className="h-8 text-sm w-40" />
             </div>
             <Button type="submit" size="sm">Apply</Button>
+            <a
+              href={`/api/finance/balance-sheet/pdf?asOf=${asOf}`}
+              download
+              className="ml-auto"
+            >
+              <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+            </a>
           </form>
         </CardContent>
       </Card>

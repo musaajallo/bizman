@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Download } from "lucide-react";
 import type { IncomeStatement, PLLine } from "@/lib/actions/accounting/statements";
 
 function fmt(n: number) {
@@ -45,6 +46,16 @@ export function IncomeStatementClient({ data, from, to }: Props) {
               <Input id="to" name="to" type="date" defaultValue={to} className="h-8 text-sm w-40" />
             </div>
             <Button type="submit" size="sm">Apply</Button>
+            <a
+              href={`/api/finance/pl/pdf?from=${from}&to=${to}`}
+              download
+              className="ml-auto"
+            >
+              <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+            </a>
           </form>
         </CardContent>
       </Card>

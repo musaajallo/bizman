@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,16 @@ export function CashFlowClient({ data, from, to }: Props) {
               <Input id="to" name="to" type="date" defaultValue={to} className="h-8 text-sm w-40" />
             </div>
             <Button type="submit" size="sm">Apply</Button>
+            <a
+              href={`/api/finance/cash-flow/pdf?from=${from}&to=${to}`}
+              download
+              className="ml-auto"
+            >
+              <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+            </a>
           </form>
         </CardContent>
       </Card>
