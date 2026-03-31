@@ -341,14 +341,15 @@ Last updated: 2026-03-24
 - [ ] PDF export for Retained Earnings statement
 - [ ] PDF export for Cash Flow Statement
 
-### Phase 2: Financial Ratios Dashboard — NOT STARTED 🔲
+### Phase 2: Financial Ratios Dashboard — DONE ✅
 > Calculated from the latest financial statements. Benchmarks shown with green/amber/red indicators.
-- [ ] Liquidity: Current Ratio (≥1.5), Quick Ratio (≥1.0), Cash Ratio (≥0.5)
-- [ ] Profitability: Gross Margin %, Operating Margin %, Net Margin %, ROA, ROE
-- [ ] Efficiency: AR Turnover, Days Sales Outstanding, AP Turnover, Days Payable Outstanding, Inventory Turnover, Days Inventory Outstanding, Cash Conversion Cycle (DSO + DIO − DPO)
-- [ ] Solvency: Debt-to-Equity (<2.0), Debt Ratio (<0.5), Interest Coverage (≥3.0)
-- [ ] 12-month trend sparkline per ratio
-- [ ] Tooltip on each ratio explaining what it measures and how to interpret it
+- [x] Liquidity: Current Ratio (≥1.5), Quick Ratio (≥1.0), Cash Ratio (≥0.5)
+- [x] Profitability: Gross Margin %, Operating Margin %, Net Margin %, ROA, ROE
+- [x] Efficiency: DSO, DPO, DIO, Cash Conversion Cycle
+- [x] Solvency: Debt-to-Equity (<2.0), Debt Ratio (<0.5), Interest Coverage (≥3.0)
+- [x] 12-month trend sparkline per ratio (colour-coded by benchmark status)
+- [x] Tooltip on each ratio explaining formula and how to interpret it
+- [x] Summary health bar: % of ratios on target + section-level counts
 
 ### Phase 3: Budgets — DONE ✅
 - [x] Prisma models: Budget, BudgetLine

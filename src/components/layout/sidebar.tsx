@@ -92,6 +92,7 @@ import {
   BookOpenCheck,
   BookMarked,
   CalendarRange,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/lib/stores/preferences-store";
@@ -193,6 +194,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Retained Earnings", href: "/africs/finance/retained-earnings", icon: BookOpen, description: "Statement of retained earnings — opening, net income, drawings, closing" },
           { label: "Budgets", href: "/africs/finance/budgets", icon: BarChart3, description: "Budget planning and actuals vs. budget" },
           { label: "Forecasting", href: "/africs/finance/forecasting", icon: TrendingUp, description: "Revenue and expense projections" },
+          { label: "Financial Ratios", href: "/africs/finance/ratios", icon: Activity, description: "Liquidity, profitability, efficiency and solvency ratios" },
         ],
       },
       {
