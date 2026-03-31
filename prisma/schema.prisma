@@ -248,9 +248,11 @@ model Tenant {
   budgetLines        BudgetLine[]
 
   // Accounting engine
-  accountingPeriods  AccountingPeriod[]
-  ledgerAccounts     LedgerAccount[]
-  journalEntries     JournalEntry[]
+  accountingPeriods       AccountingPeriod[]
+  ledgerAccounts          LedgerAccount[]
+  journalEntries          JournalEntry[]
+  adjustingEntryTemplates AdjustingEntryTemplate[]
+  badDebtConfig           BadDebtConfig?
 }
 
 model TenantUser {
@@ -2494,6 +2496,8 @@ model LedgerAccount {
   children          LedgerAccount[]    @relation("LedgerAccountHierarchy")
   journalEntryLines JournalEntryLine[]
   bankAccounts      BankAccount[]
+  adjTemplatesDebit  AdjustingEntryTemplate[] @relation("AdjTemplateDebit")
+  adjTemplatesCredit AdjustingEntryTemplate[] @relation("AdjTemplateCred")
 
   @@unique([tenantId, code])
   @@index([tenantId, type])
@@ -2612,4 +2616,41 @@ model BankStatementLine {
   @@index([statementId])
   @@index([statementId, status])
   @@index([matchedJournalEntryLineId])
+}
+
+// ─── Adjusting Entry Templates ────────────────────────────────────────────────
+
+model AdjustingEntryTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  // accrued_expense | accrued_revenue | deferred_expense | deferred_revenue
+  type            String
+  debitAccountId  String
+  creditAccountId String
+  amount          Decimal  @db.Decimal(12, 2)
+  description     String
+  isReversing     Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  debitAccount  LedgerAccount @relation("AdjTemplateDebit", fields: [debitAccountId], references: [id])
+  creditAccount LedgerAccount @relation("AdjTemplateCred", fields: [creditAccountId], references: [id])
+
+  @@index([tenantId])
+}
+
+// ─── Bad Debt Configuration ───────────────────────────────────────────────────
+
+model BadDebtConfig {
+  id           String   @id @default(cuid())
+  tenantId     String   @unique
+  // JSON: [{ bucketLabel, minDays, maxDays, reservePercent }]
+  agingBuckets Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

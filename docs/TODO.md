@@ -195,14 +195,13 @@ Last updated: 2026-03-24
 - [ ] System auto-creates next period on close of current
 - [ ] Dashboard indicator: current period + days remaining
 
-### Adjusting Entries — NOT STARTED 🔲
+### Adjusting Entries — DONE ✅
 > Period-end adjustments for accruals, deferrals, prepaid allocation, and unearned revenue.
-- [ ] Four types: accrued expense, accrued revenue, deferred expense (prepaid), deferred revenue
-- [ ] Posted as manual journal entries (same model, flagged as adjusting type)
-- [ ] Only allowed in open periods
-- [ ] Reversing entries: optional mirror-image entry auto-posted to first day of next period
-- [ ] Adjusting entry templates: save and reuse monthly recurring adjustments
-- [ ] Adjusting entries included in adjusted trial balance; excluded from unadjusted
+- [x] Four types: accrued expense, accrued revenue, deferred expense (prepaid), deferred revenue
+- [x] Posted as journal entries with sourceType = "adjusting"
+- [x] Reversing entries: optional mirror-image entry auto-posted to first day of next open period
+- [x] Adjusting entry templates: save and reuse monthly recurring adjustments (post from template with date picker)
+- [x] Adjusted vs Unadjusted trial balance toggle on the same page
 
 ### Expense Categories — NOT STARTED 🔲
 > Structured tagging for all outgoing spend — replaces free-text categories on expenses and bills.
@@ -272,15 +271,15 @@ Last updated: 2026-03-24
 - [ ] Won bid → auto-create Project (pre-filled with client, value, scope)
 - [ ] Dashboard: pipeline by stage, win rate, total bid value in progress, upcoming submission deadlines
 
-### AR Enhancements — Allowance Method & Bad Debts — NOT STARTED 🔲
+### AR Enhancements — Allowance Method & Bad Debts — DONE ✅
 > Extends the invoice module with IFRS/GAAP-compliant bad debt estimation and write-offs.
-- [ ] Allowance for Doubtful Accounts (1110) wired to Chart of Accounts
-- [ ] Configurable reserve % per aging bucket (default: current 1%, 31–60d 3%, 61–90d 10%, 91–180d 40%, 180d+ 80%)
-- [ ] Period-end bad debt estimation: calculate required allowance → post adjusting entry (Debit 6600 Bad Debts Expense / Credit 1110 Allowance)
-- [ ] Write-off workflow: Debit 1110 Allowance / Credit 1100 AR (no P&L impact — already expensed via allowance)
-- [ ] Recovery workflow: reverse write-off then record payment
-- [ ] Balance Sheet shows AR net of allowance (Net Realisable Value)
-- [ ] Aging report shows: gross AR, estimated uncollectible, net AR by bucket
+- [x] Allowance for Doubtful Accounts (1110) in Chart of Accounts
+- [x] Configurable reserve % per aging bucket (default: current 1%, 31–60d 5%, 61–90d 15%, 90d+ 50%)
+- [x] Period-end bad debt estimation: calculate required allowance → post adjusting entry (DR 6600 / CR 1110)
+- [x] Provision gap alert: over/under-provisioned with one-click post adjustment
+- [x] Write-off workflow: DR 1110 Allowance / CR 1100 AR (no P&L impact)
+- [x] Recovery workflow: reverse write-off + record cash receipt (two-entry atomic transaction)
+- [x] Aging table shows: gross AR, allowance, NRV per invoice and per bucket
 
 ### AP Enhancements — Aging & Early Payment Discounts — NOT STARTED 🔲
 > Extends the bills module with aging analysis and discount capture.
@@ -331,15 +330,16 @@ Last updated: 2026-03-24
 > Analytical layer — reads from the General Ledger (not raw transaction tables). No data entry here.
 > **Dependency: Accounting → Chart of Accounts → Journal Entries → GL must be complete first.**
 
-### Phase 1: Financial Statements — NOT STARTED 🔲
+### Phase 1: Financial Statements — IN PROGRESS 🔄
 > All four statements generated from the General Ledger for any selected period. Read-only. PDF export required.
-- [ ] Income Statement (P&L): Revenue → Gross Profit → Operating Income → Net Income; Gross/Operating/Net margin %
-- [ ] Balance Sheet: Current Assets (AR net of allowance, Inventory, Prepaid, Cash) + Non-Current Assets (PP&E net of accum. depr.) = Current Liabilities + Non-Current Liabilities + Equity; Total Assets must equal Total Liabilities + Equity
-- [ ] Cash Flow Statement (indirect method): Operating (Net Income + non-cash adjustments + working capital changes) + Investing (capex, disposals) + Financing (loans, drawings); Closing Cash must match GL 1000 Cash account
-- [ ] Statement of Retained Earnings: Opening RE + Net Income − Drawings = Closing RE
-- [ ] Comparative columns: current period vs. prior period side-by-side
-- [ ] Finance dashboard — key KPIs: gross margin, net profit margin, cash balance, AR days, AP days
-- [ ] PDF export for all four statements
+- [x] Income Statement (P&L): Revenue → Gross Profit → Operating Income → Net Income; Gross/Operating/Net margin %
+- [x] Balance Sheet: Assets = Liabilities + Equity
+- [x] Cash Flow Statement (indirect method)
+- [x] Statement of Retained Earnings: Opening RE + Net Income − Drawings = Closing RE (with optional comparative columns)
+- [x] Finance dashboard — key KPIs: gross margin, net profit margin, cash balance, AR days
+- [ ] Comparative columns for P&L, Balance Sheet, and Cash Flow (date-range based on UI already; full period selector not yet added)
+- [ ] PDF export for Retained Earnings statement
+- [ ] PDF export for Cash Flow Statement
 
 ### Phase 2: Financial Ratios Dashboard — NOT STARTED 🔲
 > Calculated from the latest financial statements. Benchmarks shown with green/amber/red indicators.

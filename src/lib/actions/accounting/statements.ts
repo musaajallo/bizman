@@ -270,6 +270,71 @@ export async function getCashFlowStatement(startDate: Date, endDate: Date): Prom
   };
 }
 
+// ── Statement of Retained Earnings ────────────────────────────────────────────
+
+export interface RetainedEarningsStatement {
+  period:          { startDate: Date; endDate: Date };
+  openingRE:       number;
+  netIncome:       number;
+  drawings:        number;
+  closingRE:       number;
+  // prior period comparative (null when not requested)
+  prior?: {
+    openingRE:  number;
+    netIncome:  number;
+    drawings:   number;
+    closingRE:  number;
+  };
+}
+
+export async function getRetainedEarningsStatement(
+  startDate: Date,
+  endDate: Date,
+  priorStartDate?: Date,
+  priorEndDate?: Date,
+): Promise<RetainedEarningsStatement | null> {
+  const owner = await getOwnerBusiness();
+  if (!owner) return null;
+  const tenantId = owner.id;
+
+  async function computeForPeriod(start: Date, end: Date) {
+    // Opening RE: balance of account 3100 as of the day before the period starts
+    const dayBefore   = new Date(start.getTime() - 86400000);
+    const preAccounts = await getAccountsWithLines(tenantId, undefined, dayBefore);
+    const reAcc       = preAccounts.find(a => a.code === "3100");
+    const openingRE   = reAcc ? balance(reAcc) : 0;
+
+    // Net income for the period
+    const periodAccounts = await getAccountsWithLines(tenantId, start, end);
+    const revenue    = periodAccounts.filter(a => a.type === "Revenue")     .reduce((s, a) => s + balance(a), 0);
+    const cos        = periodAccounts.filter(a => a.type === "CostOfSales") .reduce((s, a) => s + balance(a), 0);
+    const expenses   = periodAccounts.filter(a => a.type === "Expense")     .reduce((s, a) => s + balance(a), 0);
+    const nonOp      = periodAccounts.filter(a => a.type === "NonOperating").reduce((s, a) => {
+      const b = balance(a);
+      return s + (a.code.startsWith("44") ? b : -b);
+    }, 0);
+    const netIncome  = revenue - cos - expenses + nonOp;
+
+    // Drawings during the period (3200 is debit-normal contra-equity)
+    const drawingsAcc = periodAccounts.find(a => a.code === "3200");
+    const drawings    = drawingsAcc ? balance(drawingsAcc) : 0;
+
+    const closingRE   = openingRE + netIncome - drawings;
+    return { openingRE, netIncome, drawings, closingRE };
+  }
+
+  const current = await computeForPeriod(startDate, endDate);
+  const prior   = priorStartDate && priorEndDate
+    ? await computeForPeriod(priorStartDate, priorEndDate)
+    : undefined;
+
+  return {
+    period: { startDate, endDate },
+    ...current,
+    prior,
+  };
+}
+
 // ── Finance Dashboard metrics ─────────────────────────────────────────────────
 
 export async function getFinanceDashboard() {
