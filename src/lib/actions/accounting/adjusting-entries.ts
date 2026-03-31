@@ -4,21 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "@/lib/actions/tenants";
 import { postJournalEntry } from "./journal";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type AdjustmentType =
-  | "accrued_expense"
-  | "accrued_revenue"
-  | "deferred_expense"
-  | "deferred_revenue";
-
-export const ADJUSTMENT_TYPE_LABELS: Record<AdjustmentType, string> = {
-  accrued_expense:   "Accrued Expense",
-  accrued_revenue:   "Accrued Revenue",
-  deferred_expense:  "Deferred Expense (Prepaid)",
-  deferred_revenue:  "Deferred Revenue",
-};
+import type { AdjustmentType } from "./adjusting-entries-constants";
 
 // ── Adjusting Entry CRUD ──────────────────────────────────────────────────────
 

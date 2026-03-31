@@ -14,7 +14,7 @@ export interface AgingBucket {
   reservePercent: number;
 }
 
-export const DEFAULT_AGING_BUCKETS: AgingBucket[] = [
+const DEFAULT_AGING_BUCKETS: AgingBucket[] = [
   { bucketLabel: "Current (0–30 days)",  minDays: 0,  maxDays: 30,  reservePercent: 1  },
   { bucketLabel: "31–60 days",           minDays: 31, maxDays: 60,  reservePercent: 5  },
   { bucketLabel: "61–90 days",           minDays: 61, maxDays: 90,  reservePercent: 15 },

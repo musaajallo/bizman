@@ -23,8 +23,8 @@ import { AdjustingTemplateDialog } from "./adjusting-template-dialog";
 import {
   deleteAdjustingTemplate,
   postFromTemplate,
-  ADJUSTMENT_TYPE_LABELS,
 } from "@/lib/actions/accounting/adjusting-entries";
+import { ADJUSTMENT_TYPE_LABELS } from "@/lib/actions/accounting/adjusting-entries-constants";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);

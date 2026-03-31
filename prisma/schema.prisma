@@ -253,6 +253,7 @@ model Tenant {
   journalEntries          JournalEntry[]
   adjustingEntryTemplates AdjustingEntryTemplate[]
   badDebtConfig           BadDebtConfig?
+  forecastScenarios       ForecastScenario[]
 }
 
 model TenantUser {
@@ -2653,4 +2654,28 @@ model BadDebtConfig {
   updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ─── Forecasting ──────────────────────────────────────────────────────────────
+
+model ForecastScenario {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String // "Base", "Optimistic", "Pessimistic", or custom
+  type     String @default("custom") // base | optimistic | pessimistic | custom
+
+  revenueMultiplier Decimal @db.Decimal(4, 2) @default(1.00)
+  expenseMultiplier Decimal @db.Decimal(4, 2) @default(1.00)
+
+  // JSON: [{ month: "2026-04", additionalRevenue: 0, additionalExpense: 0, note: "" }]
+  monthlyOverrides Json @default("[]")
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }

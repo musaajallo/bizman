@@ -361,11 +361,14 @@ Last updated: 2026-03-24
 - [ ] Link budget actuals to GL accounts (replace raw table aggregation with GL-based actuals)
 - [ ] Alerts when spend exceeds budget line threshold
 
-### Phase 4: Forecasting — NOT STARTED 🔲
-- [ ] Revenue forecasting (pipeline + recurring invoice projection)
-- [ ] Expense forecasting (payroll + recurring bills)
-- [ ] Cash flow forecast (12-month rolling)
-- [ ] Scenario modelling (optimistic / base / pessimistic)
+### Phase 4: Forecasting — DONE ✅
+- [x] Revenue forecasting (pipeline + recurring invoice projection)
+- [x] Expense forecasting (payroll + recurring bills heuristic)
+- [x] Cash flow forecast (12-month rolling)
+- [x] Scenario modelling (optimistic / base / pessimistic + custom)
+- [x] Prisma model: ForecastScenario (multipliers + monthly overrides)
+- [x] PDF export per scenario
+- [x] Comparison chart — all scenarios overlaid
 
 ---
 

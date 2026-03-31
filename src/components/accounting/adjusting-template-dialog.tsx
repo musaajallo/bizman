@@ -13,11 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle } from "lucide-react";
-import {
-  createAdjustingTemplate,
-  ADJUSTMENT_TYPE_LABELS,
-  type AdjustmentType,
-} from "@/lib/actions/accounting/adjusting-entries";
+import { createAdjustingTemplate } from "@/lib/actions/accounting/adjusting-entries";
+import { ADJUSTMENT_TYPE_LABELS, type AdjustmentType } from "@/lib/actions/accounting/adjusting-entries-constants";
 
 interface Account {
   id: string;
