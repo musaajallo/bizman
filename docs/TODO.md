@@ -290,7 +290,7 @@ Last updated: 2026-03-24
 - [ ] Discount capture journal entry: Debit AP (full) / Credit Cash (net) / Credit 4500 Purchase Discounts Received
 - [ ] Show annualised cost of missing discount on bill detail (2/10 n/30 ≈ 36% annualised)
 
-### Bank Reconciliation — NOT STARTED 🔲
+### Bank Reconciliation — DONE ✅
 > Match internal GL Cash entries to bank statement lines. Required for financial statement integrity.
 - [ ] Prisma models: BankAccount (name, accountNumber, currency, tenantId), BankStatement (bankAccountId, periodId, openingBalance, closingBalance), BankStatementLine (statementId, date, description, amount, matchedJournalEntryLineId)
 - [ ] One reconciliation per bank account per accounting period

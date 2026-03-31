@@ -174,6 +174,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Chart of Accounts", href: "/africs/accounting/chart-of-accounts", icon: List, description: "Manage your general ledger accounts" },
           { label: "Journal Entries", href: "/africs/accounting/journal-entries", icon: BookOpenCheck, description: "View all posted journal entries" },
           { label: "General Ledger", href: "/africs/accounting/general-ledger", icon: BookMarked, description: "Account-by-account transaction history" },
+          { label: "Bank Reconciliation", href: "/africs/accounting/bank-reconciliation", icon: Landmark, description: "Reconcile bank statements with your general ledger" },
           { label: "Accounting Periods", href: "/africs/accounting/periods", icon: CalendarRange, description: "Open, close and lock accounting periods" },
         ],
       },

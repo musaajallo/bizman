@@ -212,6 +212,10 @@ model Tenant {
   assetSettings            AssetSettings?
   assetDepreciationEntries AssetDepreciationEntry[]
 
+  // Bank Reconciliation
+  bankAccounts  BankAccount[]
+  bankStatements BankStatement[]
+
   // Talent & Recruitment
   talentPool      TalentPoolEntry[]
   jobPostings     JobPosting[]
@@ -2455,9 +2459,10 @@ model AccountingPeriod {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  tenant                  Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  journalEntries          JournalEntry[]
+  tenant                   Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journalEntries           JournalEntry[]
   assetDepreciationEntries AssetDepreciationEntry[]
+  bankStatements           BankStatement[]
 
   @@index([tenantId, status])
   @@index([tenantId, fiscalYear])
@@ -2488,6 +2493,7 @@ model LedgerAccount {
   parent            LedgerAccount?     @relation("LedgerAccountHierarchy", fields: [parentId], references: [id])
   children          LedgerAccount[]    @relation("LedgerAccountHierarchy")
   journalEntryLines JournalEntryLine[]
+  bankAccounts      BankAccount[]
 
   @@unique([tenantId, code])
   @@index([tenantId, type])
@@ -2509,9 +2515,10 @@ model JournalEntry {
   postedById  String?
   createdAt   DateTime @default(now())
 
-  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  period  AccountingPeriod @relation(fields: [periodId], references: [id])
-  lines   JournalEntryLine[]
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period             AccountingPeriod   @relation(fields: [periodId], references: [id])
+  lines              JournalEntryLine[]
+  bankLineAdjustments BankStatementLine[] @relation("BankLineAdjustment")
 
   @@index([tenantId, date])
   @@index([tenantId, sourceType, sourceId])
@@ -2526,9 +2533,83 @@ model JournalEntryLine {
   credit         Decimal @default(0) @db.Decimal(12, 2)
   description    String?
 
-  journalEntry JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account      LedgerAccount @relation(fields: [accountId], references: [id])
+  journalEntry    JournalEntry       @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         LedgerAccount      @relation(fields: [accountId], references: [id])
+  bankLineMatches BankStatementLine[] @relation("BankLineMatch")
 
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+// ─── Bank Reconciliation ──────────────────────────────────────────────────────
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  accountNumber   String
+  bankName        String?
+  currency        String   @default("GMD")
+  ledgerAccountId String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ledgerAccount LedgerAccount?  @relation(fields: [ledgerAccountId], references: [id])
+  statements    BankStatement[]
+
+  @@unique([tenantId, accountNumber])
+  @@index([tenantId, isActive])
+}
+
+model BankStatement {
+  id             String    @id @default(cuid())
+  tenantId       String
+  bankAccountId  String
+  periodId       String
+  openingBalance Decimal   @db.Decimal(12, 2)
+  closingBalance Decimal   @db.Decimal(12, 2)
+  // draft | in_progress | reconciled | confirmed
+  status         String    @default("draft")
+  reconciledAt   DateTime?
+  reconciledById String?
+  confirmedAt    DateTime?
+  confirmedById  String?
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bankAccount BankAccount       @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  period      AccountingPeriod  @relation(fields: [periodId], references: [id])
+  lines       BankStatementLine[]
+
+  @@unique([bankAccountId, periodId])
+  @@index([tenantId, status])
+  @@index([bankAccountId])
+}
+
+model BankStatementLine {
+  id                        String   @id @default(cuid())
+  statementId               String
+  date                      DateTime
+  description               String
+  reference                 String?
+  amount                    Decimal  @db.Decimal(12, 2) // positive = deposit, negative = withdrawal
+  // unmatched | matched | adjusting_entry_posted
+  status                    String   @default("unmatched")
+  // deposit_in_transit | outstanding_cheque | bank_error | bank_fee | interest | nsf | null
+  unmatchedReason           String?
+  matchedJournalEntryLineId String?
+  adjustingJournalEntryId   String?
+  createdAt                 DateTime @default(now())
+
+  statement      BankStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  matchedLine    JournalEntryLine? @relation("BankLineMatch", fields: [matchedJournalEntryLineId], references: [id])
+  adjustingEntry JournalEntry?     @relation("BankLineAdjustment", fields: [adjustingJournalEntryId], references: [id])
+
+  @@index([statementId])
+  @@index([statementId, status])
+  @@index([matchedJournalEntryLineId])
 }
