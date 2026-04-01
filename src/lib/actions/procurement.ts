@@ -389,7 +389,7 @@ export async function createPurchaseOrder(formData: FormData) {
   if (!vendorId || !title) return { error: "Vendor and title are required" };
 
   const itemsRaw = formData.get("items") as string;
-  const items: { description: string; quantity: number; unit?: string; unitPrice: number }[] =
+  const items: { description: string; quantity: number; unit?: string; unitPrice: number; categoryId?: string | null }[] =
     itemsRaw ? JSON.parse(itemsRaw) : [];
   if (items.length === 0) return { error: "At least one line item is required" };
 
@@ -423,6 +423,7 @@ export async function createPurchaseOrder(formData: FormData) {
           unitPrice: item.unitPrice,
           totalPrice: item.quantity * item.unitPrice,
           order: idx,
+          categoryId: item.categoryId || null,
         })),
       },
     },
@@ -441,7 +442,7 @@ export async function updatePurchaseOrder(id: string, formData: FormData) {
   if (po.status !== "draft") return { error: "Only draft orders can be edited" };
 
   const itemsRaw = formData.get("items") as string;
-  const items: { description: string; quantity: number; unit?: string; unitPrice: number }[] =
+  const items: { description: string; quantity: number; unit?: string; unitPrice: number; categoryId?: string | null }[] =
     itemsRaw ? JSON.parse(itemsRaw) : [];
 
   const taxRate = formData.get("taxRate") ? parseFloat(formData.get("taxRate") as string) : null;
@@ -469,6 +470,7 @@ export async function updatePurchaseOrder(id: string, formData: FormData) {
             unitPrice: item.unitPrice,
             totalPrice: item.quantity * item.unitPrice,
             order: idx,
+            categoryId: item.categoryId || null,
           })),
         },
       },

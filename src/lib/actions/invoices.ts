@@ -667,8 +667,8 @@ export async function sendInvoice(invoiceId: string) {
       data: { invoiceId, actorId: userId, action: "sent" },
     });
 
-    // Post AR entry only when transitioning from draft (first send)
-    if (wasDraft && invoice.type !== "proforma") {
+    // Post AR/Revenue entry only when transitioning from draft (first send)
+    if (wasDraft && invoice.type === "standard") {
       const total = Number(invoice.total);
       if (total > 0) {
         await postJournalEntry({
@@ -681,6 +681,26 @@ export async function sendInvoice(invoiceId: string) {
           lines: [
             { accountCode: "1100", debit: total, description: "Accounts Receivable" },
             { accountCode: "4000", credit: total, description: "Revenue" },
+          ],
+          tx,
+        });
+      }
+    }
+
+    // Credit note issued: reverse revenue and reduce AR
+    if (wasDraft && invoice.type === "credit_note") {
+      const total = Number(invoice.total);
+      if (total > 0) {
+        await postJournalEntry({
+          tenantId: invoice.tenantId,
+          date: new Date(),
+          description: `Credit note ${invoice.invoiceNumber} issued`,
+          reference: invoice.invoiceNumber,
+          sourceType: "credit_note",
+          sourceId: invoiceId,
+          lines: [
+            { accountCode: "4000", debit: total, description: "Revenue (credit note reversal)" },
+            { accountCode: "1100", credit: total, description: "Accounts Receivable" },
           ],
           tx,
         });
@@ -718,21 +738,65 @@ export async function markInvoiceViewed(invoiceId: string) {
 export async function voidInvoice(invoiceId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
+  const userId = session.user.id;
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { status: true } });
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { status: true, type: true, total: true, tenantId: true, invoiceNumber: true },
+  });
   if (!invoice) return { error: "Invoice not found" };
   if (invoice.status === "void") return { error: "Invoice is already void" };
   if (invoice.status === "paid") return { error: "Cannot void a paid invoice" };
 
-  await prisma.$transaction([
-    prisma.invoice.update({
+  // Statuses for which a GL entry was already posted (draft never got one)
+  const hadGLEntry = ["sent", "viewed", "overdue"].includes(invoice.status);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoice.update({
       where: { id: invoiceId },
       data: { status: "void", voidedAt: new Date() },
-    }),
-    prisma.invoiceActivity.create({
-      data: { invoiceId, actorId: session.user.id, action: "voided" },
-    }),
-  ]);
+    });
+    await tx.invoiceActivity.create({
+      data: { invoiceId, actorId: userId, action: "voided" },
+    });
+
+    if (hadGLEntry) {
+      const total = Number(invoice.total);
+      if (total > 0) {
+        if (invoice.type === "standard") {
+          // Reverse: Dr Revenue / Cr AR
+          await postJournalEntry({
+            tenantId: invoice.tenantId,
+            date: new Date(),
+            description: `Invoice ${invoice.invoiceNumber} voided`,
+            reference: invoice.invoiceNumber,
+            sourceType: "invoice_void",
+            sourceId: invoiceId,
+            lines: [
+              { accountCode: "4000", debit: total, description: "Revenue (void reversal)" },
+              { accountCode: "1100", credit: total, description: "Accounts Receivable" },
+            ],
+            tx,
+          });
+        } else if (invoice.type === "credit_note") {
+          // Reverse the credit note entry: Dr AR / Cr Revenue
+          await postJournalEntry({
+            tenantId: invoice.tenantId,
+            date: new Date(),
+            description: `Credit note ${invoice.invoiceNumber} voided`,
+            reference: invoice.invoiceNumber,
+            sourceType: "credit_note_void",
+            sourceId: invoiceId,
+            lines: [
+              { accountCode: "1100", debit: total, description: "Accounts Receivable" },
+              { accountCode: "4000", credit: total, description: "Revenue (credit note void)" },
+            ],
+            tx,
+          });
+        }
+      }
+    }
+  });
 
   revalidatePath("/africs/accounting/invoices");
   return { success: true };

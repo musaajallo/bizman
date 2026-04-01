@@ -66,6 +66,33 @@ export async function closePeriod(id: string) {
   if (period.status !== "open") return { error: "Only open periods can be closed" };
 
   await prisma.accountingPeriod.update({ where: { id }, data: { status: "closed" } });
+
+  // Auto-create the next period if none already covers those dates
+  const durationMs  = period.endDate.getTime() - period.startDate.getTime();
+  const nextStart   = new Date(period.endDate.getTime() + 86_400_000); // day after end
+  const nextEnd     = new Date(nextStart.getTime() + durationMs);
+
+  const overlap = await prisma.accountingPeriod.findFirst({
+    where: {
+      tenantId: owner.id,
+      OR: [{ startDate: { lte: nextEnd }, endDate: { gte: nextStart } }],
+    },
+  });
+
+  if (!overlap) {
+    const autoName = nextStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    await prisma.accountingPeriod.create({
+      data: {
+        tenantId:   owner.id,
+        name:       autoName,
+        startDate:  nextStart,
+        endDate:    nextEnd,
+        fiscalYear: nextStart.getFullYear(),
+        status:     "open",
+      },
+    });
+  }
+
   revalidatePath("/africs/accounting/periods");
   return { success: true };
 }

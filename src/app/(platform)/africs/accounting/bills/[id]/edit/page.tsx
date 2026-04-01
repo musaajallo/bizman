@@ -4,13 +4,18 @@ import { TopBar } from "@/components/layout/top-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { getBill } from "@/lib/actions/bills";
 import { getVendors } from "@/lib/actions/vendors";
+import { getExpenseCategories } from "@/lib/actions/expenses";
 import { BillForm } from "@/components/bills/bill-form";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 export default async function EditBillPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [bill, vendors] = await Promise.all([getBill(id), getVendors({ status: "active" })]);
+  const [bill, vendors, categories] = await Promise.all([
+    getBill(id),
+    getVendors({ status: "active" }),
+    getExpenseCategories(),
+  ]);
   if (!bill || bill.status !== "draft") notFound();
 
   return (
@@ -25,7 +30,7 @@ export default async function EditBillPage({ params }: { params: Promise<{ id: s
         }
       />
       <div className="p-6">
-        <Card><CardContent className="pt-6"><BillForm vendors={vendors} bill={bill} /></CardContent></Card>
+        <Card><CardContent className="pt-6"><BillForm vendors={vendors} bill={bill} categories={categories} /></CardContent></Card>
       </div>
     </div>
   );

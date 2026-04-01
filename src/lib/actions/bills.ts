@@ -19,6 +19,11 @@ function serializeBillFields(b: {
   createdAt: Date; updatedAt: Date;
   subtotal: unknown; taxRate: unknown; taxAmount: unknown;
   totalAmount: unknown; amountPaid: unknown; amountDue: unknown;
+  categoryId?: string | null;
+  paymentTermsDays?: number | null;
+  discountPercent?: unknown;
+  discountDays?: number | null;
+  discountCaptured?: boolean;
 }) {
   return {
     id: b.id,
@@ -42,6 +47,11 @@ function serializeBillFields(b: {
     paidAt: b.paidAt?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
+    categoryId: b.categoryId ?? null,
+    paymentTermsDays: b.paymentTermsDays ?? null,
+    discountPercent: toNum(b.discountPercent),
+    discountDays: b.discountDays ?? null,
+    discountCaptured: b.discountCaptured ?? false,
   };
 }
 
@@ -186,6 +196,10 @@ export async function createBill(formData: FormData) {
 
   const billNumber = await generateBillNumber(owner.id);
 
+  const paymentTermsDays = parseInt(formData.get("paymentTermsDays") as string) || null;
+  const discountPercent = parseFloat(formData.get("discountPercent") as string) || null;
+  const discountDays = parseInt(formData.get("discountDays") as string) || null;
+
   const bill = await prisma.bill.create({
     data: {
       tenantId: owner.id,
@@ -204,6 +218,10 @@ export async function createBill(formData: FormData) {
       issueDate: new Date(issueDate),
       dueDate: new Date(dueDate),
       notes: (formData.get("notes") as string) || null,
+      categoryId: (formData.get("categoryId") as string) || null,
+      paymentTermsDays,
+      discountPercent,
+      discountDays,
       status: "draft",
     },
   });
@@ -241,6 +259,10 @@ export async function updateBill(id: string, formData: FormData) {
       issueDate: new Date(formData.get("issueDate") as string),
       dueDate: new Date(formData.get("dueDate") as string),
       notes: (formData.get("notes") as string) || null,
+      categoryId: (formData.get("categoryId") as string) || null,
+      paymentTermsDays: parseInt(formData.get("paymentTermsDays") as string) || null,
+      discountPercent: parseFloat(formData.get("discountPercent") as string) || null,
+      discountDays: parseInt(formData.get("discountDays") as string) || null,
     },
   });
 
@@ -383,7 +405,32 @@ export async function voidBill(id: string) {
   if (!bill) return { error: "Not found" };
   if (["paid", "void"].includes(bill.status)) return { error: "Cannot void a paid or already voided bill" };
 
-  await prisma.bill.update({ where: { id }, data: { status: "void" } });
+  // GL entry was posted when the bill was approved
+  const hadGLEntry = ["approved", "overdue"].includes(bill.status);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.bill.update({ where: { id }, data: { status: "void" } });
+
+    if (hadGLEntry) {
+      const total = Number(bill.totalAmount);
+      if (total > 0) {
+        await postJournalEntry({
+          tenantId: owner.id,
+          date: new Date(),
+          description: `Bill ${bill.billNumber} voided`,
+          reference: bill.billNumber,
+          sourceType: "bill_void",
+          sourceId: id,
+          lines: [
+            { accountCode: "2000", debit: total, description: "Accounts Payable (void reversal)" },
+            { accountCode: "6200", credit: total, description: "Expense (void reversal)" },
+          ],
+          tx,
+        });
+      }
+    }
+  });
+
   revalidatePath(`/africs/accounting/bills/${id}`);
   revalidatePath("/africs/accounting/bills");
   return { success: true };
@@ -398,6 +445,148 @@ export async function deleteBill(id: string) {
   if (bill.status !== "draft") return { error: "Only draft bills can be deleted" };
 
   await prisma.bill.delete({ where: { id } });
+  revalidatePath("/africs/accounting/bills");
+  return { success: true };
+}
+
+// ── AP Aging ──────────────────────────────────────────────────────────────────
+
+export type AgingBucket = "current" | "1-30" | "31-60" | "61-90" | "90+";
+
+export interface AgingRow {
+  billId: string;
+  billNumber: string;
+  title: string;
+  vendorName: string;
+  dueDate: string;
+  amountOutstanding: number;
+  currency: string;
+  daysOverdue: number;
+  bucket: AgingBucket;
+}
+
+export interface APAgingReport {
+  rows: AgingRow[];
+  totals: Record<AgingBucket | "grand", number>;
+}
+
+export async function getAPAgingReport(): Promise<APAgingReport> {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { rows: [], totals: { current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0, grand: 0 } };
+
+  const bills = await prisma.bill.findMany({
+    where: {
+      tenantId: owner.id,
+      status: { in: ["approved", "partially_paid", "overdue"] },
+    },
+    include: { vendor: { select: { name: true } } },
+    orderBy: [{ vendor: { name: "asc" } }, { dueDate: "asc" }],
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const totals: Record<AgingBucket | "grand", number> = {
+    current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0, grand: 0,
+  };
+
+  const rows: AgingRow[] = bills.map((b) => {
+    const due = new Date(b.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysOverdue = Math.floor((today.getTime() - due.getTime()) / msPerDay);
+    let bucket: AgingBucket;
+    if (daysOverdue <= 0) bucket = "current";
+    else if (daysOverdue <= 30) bucket = "1-30";
+    else if (daysOverdue <= 60) bucket = "31-60";
+    else if (daysOverdue <= 90) bucket = "61-90";
+    else bucket = "90+";
+
+    const amount = toNum(b.amountDue);
+    totals[bucket] += amount;
+    totals.grand += amount;
+
+    return {
+      billId: b.id,
+      billNumber: b.billNumber,
+      title: b.title,
+      vendorName: b.vendor.name,
+      dueDate: b.dueDate.toISOString(),
+      amountOutstanding: amount,
+      currency: b.currency,
+      daysOverdue: Math.max(0, daysOverdue),
+      bucket,
+    };
+  });
+
+  return { rows, totals };
+}
+
+// ── Capture Early Payment Discount ───────────────────────────────────────────
+
+export async function captureDiscount(billId: string) {
+  const owner = await getOwnerBusiness();
+  if (!owner) return { error: "Not found" };
+
+  const bill = await prisma.bill.findFirst({ where: { id: billId, tenantId: owner.id } });
+  if (!bill) return { error: "Not found" };
+  if (!["approved", "partially_paid", "overdue"].includes(bill.status)) return { error: "Bill is not payable" };
+  if (!bill.discountPercent || !bill.discountDays) return { error: "No discount terms on this bill" };
+  if (bill.discountCaptured) return { error: "Discount already captured" };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const issueDate = new Date(bill.issueDate);
+  issueDate.setHours(0, 0, 0, 0);
+  const discountDeadline = new Date(issueDate.getTime() + bill.discountDays * 24 * 60 * 60 * 1000);
+  if (today > discountDeadline) return { error: "Discount window has expired" };
+
+  const amountDue = toNum(bill.amountDue);
+  const discountPct = toNum(bill.discountPercent);
+  const discountAmount = parseFloat(((amountDue * discountPct) / 100).toFixed(2));
+  const netPayment = parseFloat((amountDue - discountAmount).toFixed(2));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.billPayment.create({
+      data: {
+        billId,
+        tenantId: owner.id,
+        amount: amountDue,
+        paymentDate: new Date(),
+        paymentMethod: "bank_transfer",
+        notes: `Early payment discount captured (${discountPct}%)`,
+      },
+    });
+
+    const newPaid = toNum(bill.amountPaid) + amountDue;
+    await tx.bill.update({
+      where: { id: billId },
+      data: {
+        amountPaid: newPaid,
+        amountDue: 0,
+        status: "paid",
+        paidAt: new Date(),
+        discountCaptured: true,
+      },
+    });
+
+    await postJournalEntry({
+      tenantId: owner.id,
+      date: new Date(),
+      description: `Discount captured — Bill ${bill.billNumber}`,
+      reference: bill.billNumber,
+      sourceType: "bill_payment",
+      sourceId: billId,
+      lines: [
+        { accountCode: "2000", debit: amountDue,      description: "Accounts Payable" },
+        { accountCode: "1000", credit: netPayment,     description: "Cash/Bank" },
+        { accountCode: "4500", credit: discountAmount, description: "Purchase Discounts Received" },
+      ],
+      tx,
+    });
+  });
+
+  revalidatePath(`/africs/accounting/bills/${billId}`);
   revalidatePath("/africs/accounting/bills");
   return { success: true };
 }

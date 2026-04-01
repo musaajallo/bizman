@@ -12,7 +12,7 @@ interface Expense {
   currency: string;
   status: string;
   expenseDate: string;
-  category: { value: string; label: string };
+  category: { name: string; code: string | null } | null;
   employee: { id: string; firstName: string; lastName: string; employeeNumber: string } | null;
 }
 
@@ -61,7 +61,7 @@ export function ExpenseListTable({ expenses }: { expenses: Expense[] }) {
                 </td>
                 <td className="py-3 px-4 font-medium">{e.title}</td>
                 <td className="py-3 px-4 hidden md:table-cell">
-                  <ExpenseCategoryBadge label={e.category.label} />
+                  {e.category ? <ExpenseCategoryBadge label={e.category.name} /> : <span className="text-muted-foreground/50 text-xs">—</span>}
                 </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground hidden sm:table-cell">
                   {e.employee ? `${e.employee.firstName} ${e.employee.lastName}` : "—"}

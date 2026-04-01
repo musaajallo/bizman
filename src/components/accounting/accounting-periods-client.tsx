@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Lock, Unlock, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, MoreHorizontal, Lock, Unlock, XCircle, AlertTriangle, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   createAccountingPeriod,
   closePeriod,
@@ -36,6 +38,53 @@ const STATUS_STYLES: Record<string, string> = {
 
 function fmt(date: Date) {
   return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function CurrentPeriodCard({ periods }: { periods: Period[] }) {
+  const current = periods.find(p => p.status === "open");
+  if (!current) return null;
+
+  const now       = Date.now();
+  const start     = new Date(current.startDate).getTime();
+  const end       = new Date(current.endDate).getTime();
+  const total     = end - start;
+  const elapsed   = Math.max(0, now - start);
+  const pct       = Math.min(100, Math.round((elapsed / total) * 100));
+  const daysLeft  = Math.max(0, Math.ceil((end - now) / 86_400_000));
+
+  const urgency =
+    daysLeft <= 3  ? "text-destructive" :
+    daysLeft <= 7  ? "text-amber-400"   :
+    "text-emerald-500";
+
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Calendar className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Current Period</p>
+              <p className="font-semibold text-sm">{current.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {fmt(current.startDate)} – {fmt(current.endDate)}
+              </p>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className={`text-2xl font-bold tabular-nums ${urgency}`}>{daysLeft}</p>
+            <p className="text-xs text-muted-foreground">days remaining</p>
+          </div>
+        </div>
+        <div className="mt-3 space-y-1">
+          <Progress value={pct} className="h-1.5" />
+          <p className="text-xs text-muted-foreground text-right">{pct}% elapsed</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function AccountingPeriodsClient({ periods }: { periods: Period[] }) {
@@ -78,6 +127,8 @@ export function AccountingPeriodsClient({ periods }: { periods: Period[] }) {
 
   return (
     <div className="space-y-4">
+      <CurrentPeriodCard periods={periods} />
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {periods.length} period{periods.length !== 1 ? "s" : ""}

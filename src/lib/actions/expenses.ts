@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getOwnerBusiness } from "./tenants";
 import { auth } from "@/lib/auth";
-import { EXPENSE_CATEGORIES } from "@/lib/expense-constants";
 import { postJournalEntry } from "@/lib/actions/accounting/journal";
 
 function toNum(d: unknown): number {
@@ -37,7 +36,7 @@ export async function getExpenses(filters?: {
     where,
     orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
     include: {
-      category: { select: { value: true, label: true } },
+      category: { select: { name: true, code: true } },
       employee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true } },
     },
   });
@@ -106,15 +105,12 @@ export async function getExpenseStats() {
 }
 
 export async function getExpenseCategories() {
-  const cats = await prisma.expenseCategory.findMany({ orderBy: { label: "asc" } });
-  if (cats.length > 0) return cats;
-
-  // Seed on first use if table is empty
-  await prisma.expenseCategory.createMany({
-    data: EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-    skipDuplicates: true,
+  const owner = await getOwnerBusiness();
+  return prisma.expenseCategory.findMany({
+    where: { OR: [{ tenantId: null }, { tenantId: owner?.id }], isActive: true },
+    select: { id: true, name: true, code: true, parentId: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
-  return prisma.expenseCategory.findMany({ orderBy: { label: "asc" } });
 }
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

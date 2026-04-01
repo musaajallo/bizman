@@ -15,7 +15,7 @@ interface Expense {
   notes: string | null;
   reviewedAt: string | null;
   reimbursedAt: string | null;
-  category: { value: string; label: string };
+  category: { name: string; code: string | null } | null;
   employee: { id: string; firstName: string; lastName: string; employeeNumber: string; department: string | null; jobTitle: string | null } | null;
   submittedBy: { id: string; name: string | null; email: string };
   reviewedBy: { id: string; name: string | null; email: string } | null;
@@ -49,7 +49,7 @@ export function ExpenseDetailCard({ expense }: { expense: Expense }) {
           <div>
             <h3 className="text-lg font-bold">{expense.title}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <ExpenseCategoryBadge label={expense.category.label} />
+              {expense.category && <ExpenseCategoryBadge label={expense.category.name} />}
               <ExpenseStatusBadge status={expense.status} />
             </div>
           </div>

@@ -24,7 +24,7 @@ export default async function ExpenseDetailPage({
     <div>
       <TopBar
         title={expense.title}
-        subtitle={`${expense.category.label} · ${fmtDate(expense.expenseDate)}`}
+        subtitle={`${expense.category?.name ?? "Uncategorised"} · ${fmtDate(expense.expenseDate)}`}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/africs/accounting/expenses">

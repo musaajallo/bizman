@@ -5,9 +5,9 @@ import { IncomeStatementClient } from "@/components/finance/income-statement-cli
 export default async function PlPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; priorFrom?: string; priorTo?: string }>;
 }) {
-  const { from, to } = await searchParams;
+  const { from, to, priorFrom, priorTo } = await searchParams;
 
   const now = new Date();
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
@@ -16,13 +16,18 @@ export default async function PlPage({
   const fromDate = from ?? defaultFrom;
   const toDate   = to   ?? defaultTo;
 
-  const data = await getIncomeStatement(new Date(fromDate), new Date(toDate));
+  const data = await getIncomeStatement(
+    new Date(fromDate),
+    new Date(toDate),
+    priorFrom ? new Date(priorFrom) : undefined,
+    priorTo   ? new Date(priorTo)   : undefined,
+  );
 
   return (
     <div>
       <TopBar title="Profit & Loss" subtitle="Income and expense statement for any period" />
       <div className="p-6">
-        <IncomeStatementClient data={data} from={fromDate} to={toDate} />
+        <IncomeStatementClient data={data} from={fromDate} to={toDate} priorFrom={priorFrom} priorTo={priorTo} />
       </div>
     </div>
   );

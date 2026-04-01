@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createExpense, updateExpense, submitExpense } from "@/lib/actions/expenses";
+import { CategoryPicker } from "@/components/shared/category-picker";
 
 interface Category {
   id: string;
-  value: string;
-  label: string;
+  name: string;
+  code: string | null;
+  parentId: string | null;
 }
 
 interface Employee {
@@ -28,7 +30,7 @@ interface ExistingExpense {
   description: string | null;
   amount: number;
   currency: string;
-  categoryId: string;
+  categoryId: string | null;
   expenseDate: string;
   employeeId: string | null;
   receiptUrl: string | null;
@@ -160,16 +162,12 @@ export function ExpenseForm({ categories, employees, expense }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Category <span className="text-destructive">*</span></Label>
-          <Select value={categoryId} onValueChange={onCategoryChange} required>
-            <SelectTrigger>
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CategoryPicker
+            categories={categories}
+            value={categoryId || null}
+            onChange={(v) => setCategoryId(v ?? "")}
+            placeholder="Select category"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="expenseDate">Date <span className="text-destructive">*</span></Label>

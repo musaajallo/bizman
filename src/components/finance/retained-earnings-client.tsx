@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +95,13 @@ export function RetainedEarningsClient({ data, from, to, priorFrom, priorTo }: P
               </div>
             </div>
             <Button type="submit" size="sm">Apply</Button>
+            <div className="ml-auto">
+              <a href={`/api/finance/retained-earnings/pdf?from=${from}&to=${to}`} download>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />PDF
+                </Button>
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>

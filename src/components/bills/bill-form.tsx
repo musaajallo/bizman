@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createBill, updateBill, approveBill } from "@/lib/actions/bills";
+import { CategoryPicker } from "@/components/shared/category-picker";
+import { parsePaymentTerms } from "@/lib/bill-constants";
 
-interface Vendor { id: string; name: string; }
+interface Vendor { id: string; name: string; paymentTerms: string; }
+interface FlatCategory { id: string; name: string; code: string | null; parentId: string | null; }
 
 interface ExistingBill {
   id: string;
@@ -23,11 +26,15 @@ interface ExistingBill {
   issueDate: string;
   dueDate: string;
   notes: string | null;
+  categoryId: string | null;
+  paymentTermsDays: number | null;
+  discountPercent: number;
+  discountDays: number | null;
 }
 
 const CURRENCIES = ["GMD", "USD", "EUR", "GBP", "ZAR", "NGN", "GHS"];
 
-export function BillForm({ vendors, bill }: { vendors: Vendor[]; bill?: ExistingBill }) {
+export function BillForm({ vendors, bill, categories = [] }: { vendors: Vendor[]; bill?: ExistingBill; categories?: FlatCategory[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -35,17 +42,46 @@ export function BillForm({ vendors, bill }: { vendors: Vendor[]; bill?: Existing
   const [currency, setCurrency] = useState(bill?.currency ?? "GMD");
   const [subtotal, setSubtotal] = useState(String(bill?.subtotal ?? ""));
   const [taxRate, setTaxRate] = useState(String(bill?.taxRate ?? "0"));
+  const [categoryId, setCategoryId] = useState<string | null>(bill?.categoryId ?? null);
+  const [issueDate, setIssueDate] = useState(bill ? bill.issueDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(bill?.dueDate.slice(0, 10) ?? "");
+  const [paymentTermsDays, setPaymentTermsDays] = useState(String(bill?.paymentTermsDays ?? ""));
+  const [discountPercent, setDiscountPercent] = useState(String(bill?.discountPercent ?? ""));
+  const [discountDays, setDiscountDays] = useState(String(bill?.discountDays ?? ""));
 
   const taxAmount = parseFloat(((parseFloat(taxRate) || 0) / 100 * (parseFloat(subtotal) || 0)).toFixed(2));
   const total = (parseFloat(subtotal) || 0) + taxAmount;
 
-  function onVendorChange(v: string | null) { if (v) setVendorId(v); }
+  function onVendorChange(v: string | null) {
+    if (!v) return;
+    setVendorId(v);
+    // Auto-fill discount terms from vendor's payment terms
+    const vendor = vendors.find((vn) => vn.id === v);
+    if (vendor) {
+      const terms = parsePaymentTerms(vendor.paymentTerms);
+      setPaymentTermsDays(String(terms.netDays));
+      setDiscountPercent(String(terms.discountPercent ?? ""));
+      setDiscountDays(String(terms.discountDays ?? ""));
+      // Auto-compute due date from issue date + netDays
+      if (terms.netDays > 0 && issueDate) {
+        const due = new Date(issueDate);
+        due.setDate(due.getDate() + terms.netDays);
+        setDueDate(due.toISOString().slice(0, 10));
+      }
+    }
+  }
   function onCurrencyChange(v: string | null) { if (v) setCurrency(v); }
 
   function buildFormData(form: HTMLFormElement) {
     const fd = new FormData(form);
     fd.set("vendorId", vendorId);
     fd.set("currency", currency);
+    fd.set("issueDate", issueDate);
+    fd.set("dueDate", dueDate);
+    if (categoryId) fd.set("categoryId", categoryId);
+    if (paymentTermsDays) fd.set("paymentTermsDays", paymentTermsDays);
+    if (discountPercent) fd.set("discountPercent", discountPercent);
+    if (discountDays) fd.set("discountDays", discountDays);
     return fd;
   }
 
@@ -89,8 +125,6 @@ export function BillForm({ vendors, bill }: { vendors: Vendor[]; bill?: Existing
     });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-
   return (
     <form onSubmit={handleSaveDraft} className="space-y-6 max-w-2xl">
       {/* Vendor */}
@@ -103,6 +137,19 @@ export function BillForm({ vendors, bill }: { vendors: Vendor[]; bill?: Existing
           </SelectContent>
         </Select>
       </div>
+
+      {/* Category (optional) */}
+      {categories.length > 0 && (
+        <div className="space-y-2">
+          <Label>Category <span className="text-xs text-muted-foreground">(optional)</span></Label>
+          <CategoryPicker
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="Select expense category"
+          />
+        </div>
+      )}
 
       {/* Title + Reference */}
       <div className="grid grid-cols-2 gap-4">
@@ -147,13 +194,34 @@ export function BillForm({ vendors, bill }: { vendors: Vendor[]; bill?: Existing
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="issueDate">Issue Date</Label>
-          <Input id="issueDate" name="issueDate" type="date" defaultValue={bill ? bill.issueDate.slice(0, 10) : today} />
+          <Input id="issueDate" name="issueDate" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="dueDate">Due Date <span className="text-destructive">*</span></Label>
-          <Input id="dueDate" name="dueDate" type="date" required defaultValue={bill?.dueDate.slice(0, 10)} />
+          <Input id="dueDate" name="dueDate" type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
       </div>
+
+      {/* Early payment discount terms */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="paymentTermsDays">Net Days</Label>
+          <Input id="paymentTermsDays" name="paymentTermsDays" type="number" min="0" placeholder="e.g. 30" value={paymentTermsDays} onChange={(e) => setPaymentTermsDays(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="discountPercent">Discount %</Label>
+          <Input id="discountPercent" name="discountPercent" type="number" min="0" step="0.01" placeholder="e.g. 2" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="discountDays">Discount Window (days)</Label>
+          <Input id="discountDays" name="discountDays" type="number" min="0" placeholder="e.g. 10" value={discountDays} onChange={(e) => setDiscountDays(e.target.value)} />
+        </div>
+      </div>
+      {parseFloat(discountPercent) > 0 && parseFloat(subtotal) > 0 && (
+        <p className="text-xs text-emerald-500">
+          {discountPercent}% discount = {((parseFloat(discountPercent) / 100) * total).toFixed(2)} {currency} if paid within {discountDays || "?"} days
+        </p>
+      )}
 
       {/* Description + Notes */}
       <div className="space-y-2">

@@ -5,7 +5,7 @@ import { getBills, getBillStats } from "@/lib/actions/bills";
 import { BILL_STATUSES } from "@/lib/bill-constants";
 import { BillListTable } from "@/components/bills/bill-list-table";
 import { BillStatsCards } from "@/components/bills/bill-stats-cards";
-import { Plus } from "lucide-react";
+import { Plus, BarChart3 } from "lucide-react";
 
 export default async function BillsPage({
   searchParams,
@@ -21,12 +21,20 @@ export default async function BillsPage({
         title="Bills"
         subtitle="Supplier invoices and payment tracking"
         actions={
-          <Link href="/africs/accounting/bills/new">
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Bill
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/africs/accounting/bills/aging">
+              <Button size="sm" variant="outline" className="gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Aging Report
+              </Button>
+            </Link>
+            <Link href="/africs/accounting/bills/new">
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Bill
+              </Button>
+            </Link>
+          </div>
         }
       />
       <div className="p-6 space-y-4">

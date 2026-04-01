@@ -93,6 +93,7 @@ import {
   BookMarked,
   CalendarRange,
   Activity,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/lib/stores/preferences-store";
@@ -168,6 +169,7 @@ function getNavItems(workspace: string): NavItem[] {
           { label: "Bills", href: "/africs/accounting/bills", icon: FileInput, description: "Bills you owe to vendors" },
           { label: "Vendors", href: "/africs/accounting/vendors", icon: TruckIcon, description: "Manage your suppliers and vendors" },
           { label: "Expenses", href: "/africs/accounting/expenses", icon: Receipt, description: "Track and approve business expenses" },
+          { label: "Expense Categories", href: "/africs/accounting/expense-categories", icon: Tag, description: "Hierarchical categories with GL account mapping" },
           { label: "Payroll", href: "/africs/accounting/payroll", icon: Wallet, description: "Salary processing and compensation" },
           { label: "Procurement", href: "/africs/accounting/procurement", icon: ShoppingBasket, description: "Purchase orders and requisitions" },
           { label: "Loans", href: "/africs/accounting/loans", icon: Banknote, description: "Staff loans, owner loans and salary advances" },

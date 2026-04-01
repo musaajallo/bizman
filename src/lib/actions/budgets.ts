@@ -29,7 +29,7 @@ async function getActualsForPeriod(tenantId: string, startDate: Date, endDate: D
   const [expenses, bills, payrollRuns] = await Promise.all([
     prisma.expense.findMany({
       where: { tenantId, expenseDate: { gte: startDate, lte: endDate }, status: { notIn: ["rejected"] } },
-      select: { amount: true, category: { select: { label: true } } },
+      select: { amount: true, category: { select: { name: true } } },
     }),
     prisma.bill.findMany({
       where: { tenantId, issueDate: { gte: startDate, lte: endDate } },
@@ -43,7 +43,7 @@ async function getActualsForPeriod(tenantId: string, startDate: Date, endDate: D
 
   const byCategory: Record<string, number> = {};
   for (const e of expenses) {
-    const key = e.category?.label ?? "Uncategorized";
+    const key = e.category?.name ?? "Uncategorized";
     byCategory[key] = (byCategory[key] ?? 0) + toNum(e.amount);
   }
 

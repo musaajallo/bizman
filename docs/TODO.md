@@ -181,9 +181,9 @@ Last updated: 2026-03-24
   - [x] Payroll paid → Debit 2100 Wages Payable / Credit 1000 Cash
   - [x] Loan disbursed → Debit 1700 Loans Receivable / Credit 1000 Cash
   - [x] Loan repayment → Debit 1000 Cash / Credit 1700 Loans Receivable
-  - [ ] Credit note issued → Debit 4000 Revenue / Credit 1100 AR
-  - [ ] Asset purchased → Debit 1500 PP&E / Credit 1000 Cash
-  - [ ] Depreciation posted → Debit 6500 Depreciation / Credit 1510 Accum. Depr.
+  - [x] Credit note issued → Debit 4000 Revenue / Credit 1100 AR
+  - [x] Asset purchased → Debit 1500 PP&E / Credit 1000 Cash
+  - [x] Depreciation posted → Debit 6500 Depreciation / Credit 1510 Accum. Depr.
 - [x] Journal entry list view: filterable by period and source type, expandable rows
 - [x] Manual journal entries form (inline debit/credit lines, balanced validation)
 
@@ -192,8 +192,8 @@ Last updated: 2026-03-24
 - [x] Period statuses: open → closed → locked
 - [x] Overlap detection on period creation
 - [x] Period management UI (create, close, reopen, lock with confirmation)
-- [ ] System auto-creates next period on close of current
-- [ ] Dashboard indicator: current period + days remaining
+- [x] System auto-creates next period on close of current
+- [x] Dashboard indicator: current period + days remaining
 
 ### Adjusting Entries — DONE ✅
 > Period-end adjustments for accruals, deferrals, prepaid allocation, and unearned revenue.
@@ -203,14 +203,16 @@ Last updated: 2026-03-24
 - [x] Adjusting entry templates: save and reuse monthly recurring adjustments (post from template with date picker)
 - [x] Adjusted vs Unadjusted trial balance toggle on the same page
 
-### Expense Categories — NOT STARTED 🔲
+### Expense Categories — DONE ✅
 > Structured tagging for all outgoing spend — replaces free-text categories on expenses and bills.
-- [ ] Prisma models: ExpenseCategory (name, code, parentId, chartOfAccountsLink, isActive)
-- [ ] Hierarchical categories (e.g. Operating Expenses → Travel → Flights)
-- [ ] Pre-seeded common categories
-- [ ] Link to Chart of Accounts (each category maps to an expense account)
-- [ ] Apply categories to: Expense records, Bill line items, Purchase Order line items
-- [ ] Category spend report: total spend per category for any date range
+- [x] Prisma model: ExpenseCategory (name, code, parentId, ledgerAccountId, color, isActive, isSystem, sortOrder)
+- [x] Hierarchical categories (e.g. Travel → Airfare, Hotel, Fuel)
+- [x] 22 pre-seeded system categories across 10 top-level groups
+- [x] Link to Chart of Accounts (each category optionally maps to an expense ledger account)
+- [x] Apply categories to: Expense records (CategoryPicker), Bill forms (optional), PO line items (per-item)
+- [x] Category management page: tree table, create/edit/deactivate/delete
+- [x] Category spend report: total spend per category for YTD (bar chart on management page)
+- [x] Shared CategoryPicker component (hierarchical popover with search)
 
 ### Loans — DONE ✅
 > Track money the company lends to staff or owners (salary advances, personal loans). Distinct from bills and expenses.
@@ -281,13 +283,13 @@ Last updated: 2026-03-24
 - [x] Recovery workflow: reverse write-off + record cash receipt (two-entry atomic transaction)
 - [x] Aging table shows: gross AR, allowance, NRV per invoice and per bucket
 
-### AP Enhancements — Aging & Early Payment Discounts — NOT STARTED 🔲
+### AP Enhancements — Aging & Early Payment Discounts — DONE ✅
 > Extends the bills module with aging analysis and discount capture.
-- [ ] AP aging report: current (not yet due), 1–30d, 31–60d, 61–90d, 90d+ overdue
-- [ ] Payment terms stored on vendor record and defaulted to each bill (e.g. Net 30, 2/10 n/30)
-- [ ] Early payment discount: flag bills where discount window is still open
-- [ ] Discount capture journal entry: Debit AP (full) / Credit Cash (net) / Credit 4500 Purchase Discounts Received
-- [ ] Show annualised cost of missing discount on bill detail (2/10 n/30 ≈ 36% annualised)
+- [x] AP aging report: current (not yet due), 1–30d, 31–60d, 61–90d, 90d+ overdue
+- [x] Payment terms stored on vendor record and defaulted to each bill (e.g. Net 30, 2/10 n/30)
+- [x] Early payment discount: flag bills where discount window is still open
+- [x] Discount capture journal entry: Debit AP (full) / Credit Cash (net) / Credit 4500 Purchase Discounts Received
+- [x] Show annualised cost of missing discount on bill detail (2/10 n/30 ≈ 36% annualised)
 
 ### Bank Reconciliation — DONE ✅
 > Match internal GL Cash entries to bank statement lines. Required for financial statement integrity.
@@ -330,16 +332,16 @@ Last updated: 2026-03-24
 > Analytical layer — reads from the General Ledger (not raw transaction tables). No data entry here.
 > **Dependency: Accounting → Chart of Accounts → Journal Entries → GL must be complete first.**
 
-### Phase 1: Financial Statements — IN PROGRESS 🔄
+### Phase 1: Financial Statements — DONE ✅
 > All four statements generated from the General Ledger for any selected period. Read-only. PDF export required.
 - [x] Income Statement (P&L): Revenue → Gross Profit → Operating Income → Net Income; Gross/Operating/Net margin %
 - [x] Balance Sheet: Assets = Liabilities + Equity
 - [x] Cash Flow Statement (indirect method)
 - [x] Statement of Retained Earnings: Opening RE + Net Income − Drawings = Closing RE (with optional comparative columns)
 - [x] Finance dashboard — key KPIs: gross margin, net profit margin, cash balance, AR days
-- [ ] Comparative columns for P&L, Balance Sheet, and Cash Flow (date-range based on UI already; full period selector not yet added)
-- [ ] PDF export for Retained Earnings statement
-- [ ] PDF export for Cash Flow Statement
+- [x] Comparative columns for P&L, Balance Sheet, and Cash Flow (prior period selector → side-by-side with variance column)
+- [x] PDF export for Retained Earnings statement
+- [x] PDF export for Cash Flow Statement
 
 ### Phase 2: Financial Ratios Dashboard — DONE ✅
 > Calculated from the latest financial statements. Benchmarks shown with green/amber/red indicators.

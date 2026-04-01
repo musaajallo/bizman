@@ -31,6 +31,10 @@ interface BillDetail {
   notes: string | null;
   vendor: { id: string; name: string; email: string | null; phone: string | null };
   payments: Payment[];
+  paymentTermsDays: number | null;
+  discountPercent: number;
+  discountDays: number | null;
+  discountCaptured: boolean;
 }
 
 function fmt(n: number, currency: string) {
@@ -51,8 +55,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function getDiscountInfo(bill: BillDetail) {
+  if (!bill.discountPercent || !bill.discountDays) return null;
+  const issueDate = new Date(bill.issueDate);
+  const deadline = new Date(issueDate.getTime() + bill.discountDays * 24 * 60 * 60 * 1000);
+  deadline.setHours(23, 59, 59, 999);
+  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const discountAmount = parseFloat(((bill.amountDue * bill.discountPercent) / 100).toFixed(2));
+  const windowOpen = daysLeft >= 0 && !bill.discountCaptured;
+  // Annualised cost: (d / (1 - d)) * (365 / (N - m))
+  const netDays = bill.paymentTermsDays ?? 30;
+  const d = bill.discountPercent / 100;
+  const annualisedCost = netDays > bill.discountDays
+    ? ((d / (1 - d)) * (365 / (netDays - bill.discountDays))) * 100
+    : null;
+  return { deadline, daysLeft, discountAmount, windowOpen, annualisedCost };
+}
+
 export function BillDetailCard({ bill }: { bill: BillDetail }) {
   const canDelete = !["paid", "void"].includes(bill.status);
+  const discountInfo = getDiscountInfo(bill);
 
   return (
     <div className="space-y-4">
@@ -129,6 +151,40 @@ export function BillDetailCard({ bill }: { bill: BillDetail }) {
             </div>
           )}
         </div>
+
+        {discountInfo && (
+          <>
+            <div className="border-t border-border" />
+            <div className={`rounded-md p-3 space-y-2 text-sm ${discountInfo.windowOpen ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-muted/40"}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${discountInfo.windowOpen ? "text-emerald-500" : "text-muted-foreground"}`}>
+                Early Payment Discount
+                {bill.discountCaptured && " — Captured"}
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Field label="Terms">
+                  {bill.discountPercent}% if paid within {bill.discountDays}d
+                  {bill.paymentTermsDays ? ` (Net ${bill.paymentTermsDays})` : ""}
+                </Field>
+                <Field label="Discount Amount">
+                  <span className="font-mono">{fmt(discountInfo.discountAmount, bill.currency)}</span>
+                </Field>
+                <Field label="Deadline">
+                  {fmtDate(discountInfo.deadline.toISOString())}
+                  {!bill.discountCaptured && (
+                    <span className={`ml-1 text-xs ${discountInfo.windowOpen ? "text-emerald-500" : "text-destructive"}`}>
+                      ({discountInfo.windowOpen ? `${discountInfo.daysLeft}d left` : "expired"})
+                    </span>
+                  )}
+                </Field>
+                {discountInfo.annualisedCost !== null && (
+                  <Field label="Cost of Missing">
+                    <span className="font-mono text-amber-400">{discountInfo.annualisedCost.toFixed(1)}% p.a.</span>
+                  </Field>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {bill.notes && (
           <>

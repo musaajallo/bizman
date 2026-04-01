@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { BillStatusBadge } from "./bill-status-badge";
 
 interface Bill {
@@ -15,6 +16,16 @@ interface Bill {
   issueDate: string;
   dueDate: string;
   vendor: { id: string; name: string };
+  discountPercent: number;
+  discountDays: number | null;
+  discountCaptured: boolean;
+}
+
+function discountDaysLeft(issueDate: string, discountDays: number): number {
+  const deadline = new Date(issueDate);
+  deadline.setDate(deadline.getDate() + discountDays);
+  deadline.setHours(23, 59, 59, 999);
+  return Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 function fmt(n: number, currency: string) {
@@ -72,7 +83,18 @@ export function BillListTable({ bills }: { bills: Bill[] }) {
                   {b.amountDue > 0 ? fmt(b.amountDue, b.currency) : "—"}
                 </td>
                 <td className="py-3 px-4">
-                  <BillStatusBadge status={b.status} />
+                  <div className="flex flex-col gap-1">
+                    <BillStatusBadge status={b.status} />
+                    {b.discountPercent > 0 && b.discountDays && !b.discountCaptured && ["approved", "partially_paid", "overdue"].includes(b.status) && (() => {
+                      const daysLeft = discountDaysLeft(b.issueDate, b.discountDays!);
+                      if (daysLeft < 0) return null;
+                      return (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-emerald-500 border-emerald-500/40 whitespace-nowrap">
+                          {b.discountPercent}% disc · {daysLeft}d left
+                        </Badge>
+                      );
+                    })()}
+                  </div>
                 </td>
               </tr>
             ))}

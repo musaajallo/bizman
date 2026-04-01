@@ -31,6 +31,10 @@ export default async function BillDetailPage({
               status={bill.status}
               amountDue={bill.amountDue}
               currency={bill.currency}
+              issueDate={bill.issueDate}
+              discountPercent={bill.discountPercent}
+              discountDays={bill.discountDays}
+              discountCaptured={bill.discountCaptured}
             />
           </div>
         }

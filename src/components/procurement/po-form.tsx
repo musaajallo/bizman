@@ -11,8 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPurchaseOrder, updatePurchaseOrder } from "@/lib/actions/procurement";
 import { UNITS } from "@/lib/procurement-constants";
 import { Plus, Trash2 } from "lucide-react";
+import { CategoryPicker } from "@/components/shared/category-picker";
 
 interface Vendor { id: string; name: string }
+interface FlatCategory { id: string; name: string; code: string | null; parentId: string | null; }
 
 interface LineItem {
   id: string;
@@ -21,11 +23,13 @@ interface LineItem {
   unit: string;
   unitCost: string;
   notes: string;
+  categoryId: string | null;
 }
 
 interface Props {
   vendors: Vendor[];
   requisitionId?: string;
+  categories?: FlatCategory[];
   order?: {
     id: string;
     title: string;
@@ -46,10 +50,10 @@ interface Props {
 }
 
 function newItem(): LineItem {
-  return { id: crypto.randomUUID(), description: "", quantity: "1", unit: "pcs", unitCost: "", notes: "" };
+  return { id: crypto.randomUUID(), description: "", quantity: "1", unit: "pcs", unitCost: "", notes: "", categoryId: null };
 }
 
-export function PoForm({ vendors, requisitionId, order }: Props) {
+export function PoForm({ vendors, requisitionId, order, categories = [] }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +66,7 @@ export function PoForm({ vendors, requisitionId, order }: Props) {
           unit: i.unit ?? "pcs",
           unitCost: String(i.unitPrice),
           notes: "",
+          categoryId: null,
         }))
       : [newItem()]
   );
@@ -89,6 +94,7 @@ export function PoForm({ vendors, requisitionId, order }: Props) {
       quantity: parseFloat(it.quantity) || 1,
       unit: it.unit || undefined,
       unitPrice: parseFloat(it.unitCost) || 0,
+      categoryId: it.categoryId || null,
     }))));
     if (requisitionId) fd.set("requisitionId", requisitionId);
 
@@ -229,6 +235,17 @@ export function PoForm({ vendors, requisitionId, order }: Props) {
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
+              {categories.length > 0 && (
+                <div className="col-span-12 sm:col-span-5 space-y-1">
+                  <Label className="text-xs">Category</Label>
+                  <CategoryPicker
+                    categories={categories}
+                    value={item.categoryId}
+                    onChange={(v) => setItems((prev) => prev.map((it) => it.id === item.id ? { ...it, categoryId: v } : it))}
+                    placeholder="Select category (optional)"
+                  />
+                </div>
+              )}
             </div>
           ))}
 
