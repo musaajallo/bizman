@@ -18,10 +18,11 @@ type JournalLine = {
 
 type JournalEntry = {
   id: string;
-  date: Date;
+  date: Date | string;
   description: string;
   reference: string | null;
   sourceType: string;
+  sourceId?: string | null;
   period: { name: string } | null;
   lines: JournalLine[];
 };
@@ -29,7 +30,7 @@ type JournalEntry = {
 type Period = {
   id: string;
   name: string;
-  status: string;
+  status?: string;
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -58,7 +59,7 @@ const SOURCE_STYLES: Record<string, string> = {
   manual:          "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
 };
 
-function fmt(date: Date) {
+function fmt(date: Date | string) {
   return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
