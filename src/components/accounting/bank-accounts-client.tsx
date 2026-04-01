@@ -136,26 +136,20 @@ export function BankAccountsClient({
     });
   }
 
-  if (accounts.length === 0 && !createOpen) {
-    return (
-      <div className="py-16 text-center space-y-4">
-        <Building2 className="h-10 w-10 mx-auto text-muted-foreground" />
-        <p className="text-muted-foreground text-sm">No bank accounts set up yet.</p>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />Add Bank Account
-        </Button>
-        <AccountDialog open={createOpen} onClose={() => setCreateOpen(false)} ledgerAccounts={ledgerAccounts} />
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-end mb-4 w-full">
         <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />Add Bank Account
         </Button>
       </div>
+
+      {accounts.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 space-y-2">
+          <Building2 className="h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground text-sm">No bank accounts set up yet.</p>
+        </div>
+      )}
 
       <div className="grid gap-3">
         {accounts.map((a) => (

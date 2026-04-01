@@ -14,7 +14,7 @@ export default async function BankReconciliationPage() {
         title="Bank Reconciliation"
         subtitle="Manage bank accounts and reconcile statements with your general ledger"
       />
-      <div className="p-6 max-w-3xl">
+      <div className="p-6">
         <BankAccountsClient accounts={accounts} ledgerAccounts={ledgerAccounts} />
       </div>
     </div>
