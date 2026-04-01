@@ -139,7 +139,7 @@ export function CategoryFormDialog({
             {editing ? "Edit Category" : "New Expense Category"}
           </DialogTitle>
         </DialogHeader>
-        <Form {...form}>
+        <Form {...form} key={editing?.id ?? "new"}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
