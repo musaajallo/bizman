@@ -82,6 +82,7 @@ export async function getPayrollRun(id: string) {
       medicalAidDeduction: toNum(p.medicalAidDeduction),
       payeTax: toNum(p.payeTax),
       otherDeduction: toNum(p.otherDeduction),
+      loanDeduction: toNum(p.loanDeduction),
       totalDeductions: toNum(p.totalDeductions),
       netPay: toNum(p.netPay),
     })),
@@ -118,6 +119,7 @@ export async function getPayslip(id: string) {
     medicalAidDeduction: toNum(p.medicalAidDeduction),
     payeTax: toNum(p.payeTax),
     otherDeduction: toNum(p.otherDeduction),
+    loanDeduction: toNum(p.loanDeduction),
     totalDeductions: toNum(p.totalDeductions),
     netPay: toNum(p.netPay),
     payrollRun: {
@@ -229,6 +231,25 @@ export async function createPayrollRun(formData: FormData) {
     })
   );
 
+  // Fetch active payroll-deduction loans for each employee
+  const loanDeductionByEmployee = new Map<string, number>();
+  await Promise.all(
+    employees.map(async (e) => {
+      const loans = await prisma.loan.findMany({
+        where: {
+          employeeId: e.id,
+          tenantId: owner.id,
+          payrollDeduction: true,
+          status: { in: ["active", "disbursed"] },
+          repaymentAmount: { not: null },
+        },
+        select: { repaymentAmount: true },
+      });
+      const total = loans.reduce((sum, l) => sum + toNum(l.repaymentAmount), 0);
+      if (total > 0) loanDeductionByEmployee.set(e.id, total);
+    })
+  );
+
   // Build payslip data for each employee
   const payslipData = employees.map((e) => {
     const basic = toNum(e.basicSalary);
@@ -242,7 +263,8 @@ export async function createPayrollRun(formData: FormData) {
     const gross = basic + housing + transport + other + overtimePay;
     const pensionRate = toNum(e.pensionContribution);
     const pension = parseFloat(((pensionRate / 100) * basic).toFixed(2));
-    const totalDed = pension;
+    const loanDed = loanDeductionByEmployee.get(e.id) ?? 0;
+    const totalDed = parseFloat((pension + loanDed).toFixed(2));
     const net = parseFloat((gross - totalDed).toFixed(2));
 
     return {
@@ -267,6 +289,7 @@ export async function createPayrollRun(formData: FormData) {
       payeTax: 0,
       otherDeduction: 0,
       otherDeductionLabel: null,
+      loanDeduction: loanDed,
       totalDeductions: totalDed,
       netPay: net,
       currency,
@@ -441,6 +464,12 @@ export async function markPayrollPaid(id: string) {
   if (!run) return { error: "Not found" };
   if (run.status !== "processing") return { error: "Payroll run must be in processing status" };
 
+  // Fetch payslips with loan deductions to auto-settle loans
+  const payslips = await prisma.payslip.findMany({
+    where: { payrollRunId: id },
+    select: { employeeId: true, loanDeduction: true },
+  });
+
   const paidAt = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -448,7 +477,22 @@ export async function markPayrollPaid(id: string) {
     await tx.payrollRun.update({ where: { id }, data: { status: "paid", paidAt } });
 
     const totalNet = toNum(run.totalNet);
+
+    // Compute total loan deductions across all payslips
+    const totalLoanDed = payslips.reduce((sum, p) => sum + toNum(p.loanDeduction), 0);
+    const cashPaid = parseFloat((totalNet - totalLoanDed).toFixed(2));
+
+    // Main payroll payment GL entry
     if (totalNet > 0) {
+      const lines: { accountCode: string; debit?: number; credit?: number; description?: string }[] = [
+        { accountCode: "2100", debit: totalNet, description: "Wages Payable" },
+      ];
+      if (cashPaid > 0) {
+        lines.push({ accountCode: "1000", credit: cashPaid, description: "Cash/Bank" });
+      }
+      if (totalLoanDed > 0) {
+        lines.push({ accountCode: "1700", credit: totalLoanDed, description: "Staff Loans Receivable (payroll deduction)" });
+      }
       await postJournalEntry({
         tenantId: owner.id,
         date: paidAt,
@@ -456,17 +500,54 @@ export async function markPayrollPaid(id: string) {
         reference: id,
         sourceType: "payroll_payment",
         sourceId: id,
-        lines: [
-          { accountCode: "2100", debit: totalNet, description: "Wages Payable" },
-          { accountCode: "1000", credit: totalNet, description: "Cash/Bank" },
-        ],
+        lines,
         tx,
       });
+    }
+
+    // Auto-create loan repayment records for employees with loan deductions
+    for (const slip of payslips) {
+      const loanDed = toNum(slip.loanDeduction);
+      if (loanDed <= 0 || !slip.employeeId) continue;
+
+      const activeLoans = await tx.loan.findMany({
+        where: {
+          employeeId: slip.employeeId,
+          tenantId: owner.id,
+          payrollDeduction: true,
+          status: { in: ["active", "disbursed"] },
+          repaymentAmount: { not: null },
+        },
+        include: { repayments: { select: { amount: true } } },
+      });
+
+      for (const loan of activeLoans) {
+        const repayAmount = toNum(loan.repaymentAmount);
+        if (repayAmount <= 0) continue;
+
+        await tx.loanRepayment.create({
+          data: {
+            tenantId: owner.id,
+            loanId: loan.id,
+            amount: repayAmount,
+            method: "payroll_deduction",
+            paidAt,
+            notes: `Auto-deducted — payroll ${run.periodLabel}`,
+          },
+        });
+
+        // Check if fully settled
+        const totalPaid = loan.repayments.reduce((s, r) => s + toNum(r.amount), 0) + repayAmount;
+        if (totalPaid >= toNum(loan.principal)) {
+          await tx.loan.update({ where: { id: loan.id }, data: { status: "settled" } });
+        }
+      }
     }
   });
 
   revalidatePath(`/africs/accounting/payroll/${id}`);
   revalidatePath("/africs/accounting/payroll");
+  revalidatePath("/africs/accounting/loans");
   return { success: true };
 }
 

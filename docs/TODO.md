@@ -224,8 +224,8 @@ Last updated: 2026-03-24
 - [x] Payroll deduction flag per loan
 - [x] Loan summary dashboard: total outstanding, repayments this month
 - [x] Auto-settle when fully repaid
-- [ ] Payroll integration (auto-deduct flagged loans during payroll run)
-- [ ] Link to Chart of Accounts (loans receivable account)
+- [x] Payroll integration (auto-deduct flagged loans during payroll run)
+- [x] Link to Chart of Accounts (loans receivable account)
 
 ### Budgets — DONE ✅
 > Plan and monitor spend across departments and units. Compare actuals (from expenses, bills, payroll) against budget lines.

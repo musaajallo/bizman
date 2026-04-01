@@ -1346,6 +1346,7 @@ model Payslip {
   payeTax               Decimal @db.Decimal(12, 2) @default(0)
   otherDeduction        Decimal @db.Decimal(12, 2) @default(0)
   otherDeductionLabel   String?
+  loanDeduction         Decimal @db.Decimal(12, 2) @default(0)
   totalDeductions       Decimal @db.Decimal(12, 2) @default(0)
 
   netPay   Decimal @db.Decimal(12, 2) @default(0)
