@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: bizman
+    runtime: node
+    repo: https://github.com/musaajallo/bizman.git
+    branch: main
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build
+    startCommand: pnpm prisma migrate deploy && pnpm start
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bizman-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: AUTH_URL
+        sync: false
+      - key: NODE_VERSION
+        value: "22"
+
+databases:
+  - name: bizman-db
+    plan: free
+    region: oregon
