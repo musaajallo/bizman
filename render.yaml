@@ -4,8 +4,8 @@ services:
     runtime: node
     repo: https://github.com/musaajallo/bizman.git
     branch: main
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build
-    startCommand: pnpm prisma migrate deploy && pnpm start
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm prisma migrate deploy && pnpm build
+    startCommand: pnpm start
     plan: free
     region: oregon
     envVars:
